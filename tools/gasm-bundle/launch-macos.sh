@@ -143,7 +143,12 @@ if [ "$SAVE" = 1 ] && [ "$DRY" = 0 ]; then
 fi
 
 if [ -d "$DATAP" ]; then DATA=(--asset-dir "$DATAP"); else DATA=(--rom "$DATAP"); fi
-CMD=("$HERE/gasm-run" "$RES/openballance.wasm" "${DATA[@]}" --window 1280x960 "$@")
+# OpenBallance's keyboard layout (Shift + arrows rotate the view), unless the user has their own gasm layout
+KEYMAP=()
+case " $* " in *" --keymap "*) ;; *)
+  [ -f "$HOME/Library/Application Support/gasm/keymap.txt" ] || KEYMAP=(--keymap "$RES/keymap.txt") ;;
+esac
+CMD=("$HERE/gasm-run" "$RES/openballance.wasm" "${DATA[@]}" --window 1280x960 "${KEYMAP[@]}" "$@")
 if [ "$DRY" = 1 ]; then printf '%q ' "${CMD[@]}"; echo; exit 0; fi
 
 mkdir -p "$LOGDIR"

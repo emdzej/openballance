@@ -11,6 +11,9 @@ gasm-run openballance.wasm --rom Ballance.iso
 # the mounted CD, a copy of it, or an installed game
 gasm-run openballance.wasm --asset-dir /Volumes/BALLANCE
 
+# OpenBallance's keyboard layout (Shift + arrows rotate the view; see Controls)
+gasm-run openballance.wasm --rom Ballance.iso --keymap keymap.txt
+
 # keep the saves in a folder of your choice and unlock every level
 gasm-run openballance.wasm --rom Ballance.iso --storage-dir saves --param unlockall=1
 ```

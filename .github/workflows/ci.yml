@@ -28,6 +28,8 @@ jobs:
         run: cmake --build build -j
       - name: check Python tools compile
         run: python3 -m py_compile tools/*.py
+      - name: the browser player's keymap is the bundles' one
+        run: cmp tools/gasm-bundle/keymap.txt docs/public/play/keymap.txt
 
   wasm:
     runs-on: ubuntu-latest

@@ -37,9 +37,12 @@ const show = (id, on) => { $(id).hidden = !on; };
 
 // ---- keyboard layout, typed text and gamepads ---------------------------------------------------
 const KEYMAP_KEY = 'openballance.keymap';
-let keymapText = localStorage.getItem(KEYMAP_KEY) ?? DEFAULT_KEYMAP;
+// OpenBallance's layout (tools/gasm-bundle/keymap.txt: both Shift keys on L, so Shift + arrows rotate the
+// view as in the original); gasm's built-in layout if it can't be fetched.
+const BALLANCE_KEYMAP = await fetch(new URL('./keymap.txt', import.meta.url)).then((r) => (r.ok ? r.text() : DEFAULT_KEYMAP)).catch(() => DEFAULT_KEYMAP);
+let keymapText = localStorage.getItem(KEYMAP_KEY) ?? BALLANCE_KEYMAP;
 let keymap = parseKeymap(keymapText);
-if (keymap.errors.length) { keymapText = DEFAULT_KEYMAP; keymap = parseKeymap(DEFAULT_KEYMAP); }
+if (keymap.errors.length) { keymapText = BALLANCE_KEYMAP; keymap = parseKeymap(BALLANCE_KEYMAP); }
 
 const held = new Set();
 let typed = '';                         // text_input: characters typed since the last frame (highscore names)
@@ -126,10 +129,10 @@ $('keymap-save').onclick = (e) => {
   const text = $('keymap-text').value, k = parseKeymap(text);
   if (k.errors.length) { e.preventDefault(); $('keymap-error').textContent = k.errors.join('\n'); return; }
   keymapText = text; keymap = k;
-  if (text === DEFAULT_KEYMAP) localStorage.removeItem(KEYMAP_KEY); else localStorage.setItem(KEYMAP_KEY, text);
+  if (text === BALLANCE_KEYMAP) localStorage.removeItem(KEYMAP_KEY); else localStorage.setItem(KEYMAP_KEY, text);
   renderControls();
 };
-$('keymap-reset').onclick = (e) => { e.preventDefault(); $('keymap-text').value = DEFAULT_KEYMAP; $('keymap-error').textContent = ''; };
+$('keymap-reset').onclick = (e) => { e.preventDefault(); $('keymap-text').value = BALLANCE_KEYMAP; $('keymap-error').textContent = ''; };
 
 // ---- audio: the gasm web player's AudioWorklet queue ------------------------------------------
 const WORKLET = `

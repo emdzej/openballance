@@ -139,7 +139,7 @@ jobs:
           $zip = Get-ChildItem dist/openballance-gasm-*-windows-x86_64.zip | Select-Object -First 1
           Expand-Archive $zip.FullName -DestinationPath unpacked
           $d = (Get-ChildItem unpacked -Directory | Select-Object -First 1).FullName
-          foreach ($f in 'gasm-run.exe', 'openballance.wasm', 'OpenBallance.cmd', 'openballance.ps1') {
+          foreach ($f in 'gasm-run.exe', 'openballance.wasm', 'OpenBallance.cmd', 'openballance.ps1', 'keymap.txt') {
             if (-not (Test-Path (Join-Path $d $f))) { throw "missing $f" }
           }
           # No data: OpenBallance's clean error, exit code 1 (not a crash).
@@ -157,7 +157,7 @@ jobs:
           $env:OPENBALLANCE_DATA = Join-Path $PWD 'game'
           $cmd = & "$d\OpenBallance.cmd" --dry-run --param unlockall=1 | Out-String
           $cmd
-          if ($LASTEXITCODE -ne 0 -or $cmd -notmatch '--asset-dir' -or $cmd -notmatch 'unlockall=1') { throw 'dry run with a folder' }
+          if ($LASTEXITCODE -ne 0 -or $cmd -notmatch '--asset-dir' -or $cmd -notmatch 'unlockall=1' -or $cmd -notmatch '--keymap') { throw 'dry run with a folder' }
           $env:OPENBALLANCE_DATA = Join-Path $PWD 'ballance.iso'
           $cmd = & "$d\OpenBallance.cmd" --dry-run | Out-String
           if ($LASTEXITCODE -ne 0 -or $cmd -notmatch '--rom') { throw 'dry run with an image' }

@@ -107,12 +107,12 @@ CONTROLS (keyboard; a gamepad works too)
   Arrows            roll the ball, move in the menus
   X or Enter        Enter: select
   Z                 Esc: pause menu, back (Esc itself closes gasm-run)
-  Q or W            Shift: hold with Left / Right to rotate the camera
-  S                 Space: raise the camera for an overview
+  Shift (or W)      Shift: hold with Left / Right to rotate the camera
+  Space or S        Space: raise the camera for an overview
   A                 Q: skip the tutorial
-  Right Shift       F1
-Typed letters go to the highscore name entry. Other keys: write a layout file (gasm-run
---print-keymap prints the default) and save it as $keymapdir
+  F1                F1
+Typed letters go to the highscore name entry. Other keys: copy the bundled keymap.txt, edit it
+and save it as $keymapdir (then the launcher uses yours)
 Launch options (after the data): --param unlockall=1 (all levels), --param language=0..4
 (German, English, Spanish, Italian, French), --param mode=viewer --param level=1..12 (level viewer).
 Full guide: https://openballance.emdzej.pl/guide/
@@ -138,6 +138,7 @@ macos-*)
   fill "$SRC/launch-macos.sh" "$APP/Contents/MacOS/OpenBallance"
   chmod +x "$APP/Contents/MacOS/OpenBallance" "$APP/Contents/MacOS/gasm-run"
   cp "$WASM" "$APP/Contents/Resources/openballance.wasm"
+  cp "$SRC/keymap.txt" "$APP/Contents/Resources/keymap.txt"
   cp "$ROOT/LICENSE" "$APP/Contents/Resources/LICENSE"
   cp "$RUNDIR/LICENSE" "$APP/Contents/Resources/LICENSE-gasm"
   "$ROOT/tools/make-icns.sh" "$APP/Contents/Resources/openballance.icns"
@@ -181,6 +182,7 @@ linux-*)
   D="$STAGE/$NAME"; mkdir "$D"
   cp "$RUNDIR/gasm-run" "$D/"
   cp "$WASM" "$D/openballance.wasm"
+  cp "$SRC/keymap.txt" "$D/keymap.txt"
   fill "$SRC/openballance.sh" "$D/openballance.sh"
   cp "$SRC/openballance-gasm.desktop" "$D/"
   python3 "$ROOT/tools/icon.py" 256 "$D/openballance.png" "$ICON"
@@ -196,10 +198,11 @@ windows-*)
   D="$STAGE/$NAME"; mkdir "$D"
   cp "$RUNDIR/gasm-run.exe" "$D/"
   cp "$WASM" "$D/openballance.wasm"
+  cp "$SRC/keymap.txt" "$D/keymap.txt"
   fill "$SRC/OpenBallance.cmd" "$D/OpenBallance.cmd"; fill "$SRC/openballance.ps1" "$D/openballance.ps1"
   readme "$D/README.txt"
   cp "$ROOT/LICENSE" "$D/LICENSE.txt"; cp "$RUNDIR/LICENSE" "$D/LICENSE-gasm.txt"
-  for f in OpenBallance.cmd openballance.ps1 README.txt LICENSE.txt LICENSE-gasm.txt; do crlf "$D/$f"; done
+  for f in OpenBallance.cmd openballance.ps1 README.txt LICENSE.txt LICENSE-gasm.txt keymap.txt; do crlf "$D/$f"; done
   rm -f "$OUT/$NAME.zip"
   (cd "$STAGE" && zip -qr "$OUT/$NAME.zip" "$NAME")
   sha "$NAME.zip"

@@ -148,7 +148,12 @@ if ($save -and -not $Dry) {
 
 if (Test-Path -LiteralPath $data -PathType Container) { $src = @('--asset-dir', $data) } else { $src = @('--rom', $data) }
 $run = Join-Path $Here 'gasm-run.exe'
-$cmd = @((Join-Path $Here 'openballance.wasm')) + $src + @('--window', '1280x960') + $rest
+# OpenBallance's keyboard layout (Shift + arrows rotate the view), unless the user has their own gasm layout
+$km = @()
+if (($rest -notcontains '--keymap') -and -not (Test-Path -LiteralPath (Join-Path $env:APPDATA 'gasm\keymap.txt'))) {
+  $km = @('--keymap', (Join-Path $Here 'keymap.txt'))
+}
+$cmd = @((Join-Path $Here 'openballance.wasm')) + $src + @('--window', '1280x960') + $km + $rest
 if ($Dry) { (@($run) + $cmd | ForEach-Object { '"' + $_ + '"' }) -join ' '; exit 0 }
 & $run @cmd
 exit $LASTEXITCODE
