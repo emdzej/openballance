@@ -1,0 +1,205 @@
+/* Ballance theme, sampled from the game: the warm sunset sky (peach #f4a46b, sunset #e8835a, rose #f2b6a0)
+   over grey-violet clouds, sandstone floors (#c9b79a, #a8977c), wooden bridges (#8a5a32), blue-grey metal
+   rails (#5d6f9e), the magenta checkpoint flames (#ff3fa4) and the menu's polished silver ball buttons
+   with their gold highlight (#d9a441) on dark translucent panels. */
+
+:root {
+  --bl-peach: #f4a46b;
+  --bl-sunset: #e8835a;
+  --bl-rose: #f2b6a0;
+  --bl-cloud: #8f88a6;
+  --bl-cloud-dark: #4b4560;
+  --bl-stone: #c9b79a;
+  --bl-stone-dark: #a8977c;
+  --bl-wood: #8a5a32;
+  --bl-rail: #5d6f9e;
+  --bl-flame: #ff3fa4;
+  --bl-gold: #d9a441;
+  --bl-silver: #c9cdd6;
+  --bl-silver-dark: #8b909c;
+  /* The menu buttons' rim: silver with a gold glint. */
+  --bl-rim: linear-gradient(90deg, var(--bl-silver-dark), var(--bl-silver) 30%, var(--bl-gold) 50%, var(--bl-silver) 70%, var(--bl-silver-dark));
+
+  --vp-c-brand-1: #a2461f;
+  --vp-c-brand-2: #b9562b;
+  --vp-c-brand-3: #e8835a;
+  --vp-c-brand-soft: rgba(232, 131, 90, 0.16);
+
+  --vp-c-bg: #fcf6ef;
+  --vp-c-bg-alt: #f6ece0;
+  --vp-c-bg-elv: #fffaf5;
+  --vp-c-bg-soft: #f1e4d4;
+  --vp-c-divider: #e4d3bf;
+  --vp-c-gutter: #e4d3bf;
+  --vp-c-text-1: #2e2420;
+  --vp-c-text-2: #5e4f45;
+
+  --vp-c-tip-1: #475a8c;
+  --vp-c-tip-2: #5d6f9e;
+  --vp-c-tip-3: #5d6f9e;
+  --vp-c-tip-soft: rgba(93, 111, 158, 0.14);
+  --vp-c-warning-1: #8a5a32;
+  --vp-c-warning-2: #a06c3c;
+  --vp-c-warning-3: #d9a441;
+  --vp-c-warning-soft: rgba(217, 164, 65, 0.18);
+  --vp-c-danger-1: #b3246f;
+  --vp-c-danger-2: #c92f80;
+  --vp-c-danger-3: #ff3fa4;
+  --vp-c-danger-soft: rgba(255, 63, 164, 0.12);
+
+  --vp-button-brand-bg: #b0512a;
+  --vp-button-brand-hover-bg: #9c4624;
+  --vp-button-brand-active-bg: #873c1f;
+  --vp-button-brand-text: #fffaf5;
+  --vp-button-brand-hover-text: #fffaf5;
+  --vp-button-brand-active-text: #fffaf5;
+  --vp-button-alt-bg: #efe1cf;
+  --vp-button-alt-hover-bg: #e6d3bc;
+  --vp-button-alt-text: #3d2f28;
+  --vp-button-alt-hover-text: #2e2420;
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(115deg, #b9562b 10%, var(--bl-sunset) 35%, #d8738c 60%, var(--bl-gold) 90%);
+  --vp-home-hero-image-background-image: radial-gradient(circle at 40% 40%, rgba(244, 164, 107, 0.75), rgba(242, 182, 160, 0.55) 45%, rgba(143, 136, 166, 0.35) 75%);
+  --vp-home-hero-image-filter: blur(64px);
+
+  --vp-c-default-soft: rgba(168, 151, 124, 0.16);
+}
+
+.dark {
+  --vp-c-brand-1: #f4a46b;
+  --vp-c-brand-2: #e8835a;
+  --vp-c-brand-3: #c96a43;
+  --vp-c-brand-soft: rgba(244, 164, 107, 0.16);
+
+  /* Dusk: the clouds after sunset. */
+  --vp-c-bg: #17141c;
+  --vp-c-bg-alt: #121016;
+  --vp-c-bg-elv: #1f1b25;
+  --vp-c-bg-soft: #231e2a;
+  --vp-c-divider: #3a3343;
+  --vp-c-gutter: #0d0b10;
+  --vp-c-text-1: #f1e8de;
+  --vp-c-text-2: #c4b7aa;
+
+  --vp-c-tip-1: #9fb0dc;
+  --vp-c-tip-2: #7d8fc0;
+  --vp-c-tip-soft: rgba(93, 111, 158, 0.22);
+  --vp-c-warning-1: #e6b65a;
+  --vp-c-warning-2: #d9a441;
+  --vp-c-warning-soft: rgba(217, 164, 65, 0.18);
+  --vp-c-danger-1: #ff7cc0;
+  --vp-c-danger-2: #ff3fa4;
+  --vp-c-danger-soft: rgba(255, 63, 164, 0.16);
+
+  --vp-button-brand-bg: #e8835a;
+  --vp-button-brand-hover-bg: #f4a46b;
+  --vp-button-brand-active-bg: #d9a441;
+  --vp-button-brand-text: #1d1410;
+  --vp-button-brand-hover-text: #1d1410;
+  --vp-button-brand-active-text: #1d1410;
+  --vp-button-alt-bg: rgba(40, 34, 48, 0.85);
+  --vp-button-alt-hover-bg: rgba(58, 50, 68, 0.9);
+  --vp-button-alt-text: #f1e8de;
+  --vp-button-alt-hover-text: #fff;
+
+  --vp-home-hero-name-background: linear-gradient(115deg, var(--bl-peach) 10%, var(--bl-sunset) 35%, var(--bl-rose) 60%, var(--bl-gold) 90%);
+  --vp-home-hero-image-background-image: radial-gradient(circle at 40% 40%, rgba(232, 131, 90, 0.55), rgba(255, 63, 164, 0.18) 50%, rgba(93, 111, 158, 0.3) 75%);
+}
+
+/* The menu buttons' silver-gold rim as a thin line under the navigation bar. */
+.VPNav::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  background: var(--bl-rim);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.VPNavBarTitle .title {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 15px;
+}
+
+/* Buttons shaped like the menu's: a pill with a metal rim. */
+.VPButton {
+  border-radius: 999px !important;
+}
+.VPButton.alt {
+  border: 1px solid var(--bl-stone-dark) !important;
+}
+.dark .VPButton.alt {
+  border-color: var(--bl-silver-dark) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.dark .VPButton.brand {
+  box-shadow: 0 0 0 1px rgba(217, 164, 65, 0.6), 0 6px 18px rgba(232, 131, 90, 0.25);
+}
+
+/* Feature cards: sandstone in daylight, the menu's translucent panels at dusk. */
+.VPFeature {
+  border: 1px solid var(--vp-c-divider) !important;
+  border-left: 3px solid var(--bl-sunset) !important;
+  background: linear-gradient(160deg, var(--vp-c-bg-elv), var(--vp-c-bg-soft)) !important;
+}
+.dark .VPFeature {
+  background: linear-gradient(160deg, rgba(48, 42, 56, 0.9), rgba(28, 24, 33, 0.92)) !important;
+  border-color: rgba(201, 205, 214, 0.22) !important;
+  border-left-color: var(--bl-gold) !important;
+}
+
+/* The hero screenshot in a polished frame. */
+.VPHero .image-src {
+  border-radius: 14px;
+  max-width: 340px !important;
+  box-shadow: 0 0 0 2px rgba(201, 205, 214, 0.75), 0 0 0 4px rgba(217, 164, 65, 0.45), 0 18px 40px rgba(60, 30, 20, 0.28);
+}
+@media (min-width: 960px) {
+  .VPHero .image-src { max-width: 460px !important; }
+}
+
+.vp-doc table th {
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-doc img {
+  border-radius: 8px;
+}
+
+.vp-doc a {
+  text-underline-offset: 3px;
+}
+
+/* gasm's official "Built for gasm" badge: the variant that matches the theme. */
+.gasm-badge-dark { display: none; }
+.dark .gasm-badge-light { display: none; }
+.dark .gasm-badge-dark { display: inline; }
+
+/* Screenshot grids (home, gallery, internals). */
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.shots img { width: 100%; border-radius: 8px; box-shadow: 0 0 0 1px var(--vp-c-divider); }
+.gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.gallery figure { margin: 0; }
+.gallery img { width: 100%; border-radius: 8px; box-shadow: 0 0 0 1px var(--vp-c-divider); }
+.gallery figcaption { font-size: 0.85em; color: var(--vp-c-text-2); margin-top: 6px; }
+
+/* Keyboard keys in the controls tables. */
+.vp-doc kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 6px;
+  border: 1px solid var(--bl-stone-dark);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--vp-c-bg-elv);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.85em;
+  line-height: 1.6;
+  text-align: center;
+}
+.dark .vp-doc kbd { border-color: var(--bl-silver-dark); background: #2a2431; }

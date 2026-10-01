@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Play | OpenBallance</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Play Ballance in your browser with OpenBallance, using the data from your own copy of the game.">
+<meta name="theme-color" content="#e8835a">
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="stylesheet" href="play.css">
+<script type="importmap">
+{ "imports": {
+  "@emdzej/csfs-core": "./vendor/csfs/core/index.js",
+  "@emdzej/csfs-fsa": "./vendor/csfs/fsa/index.js",
+  "@emdzej/csfs-opfs": "./vendor/csfs/opfs/index.js"
+} }
+</script>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/"><img src="/favicon.png" alt="" width="26" height="26"> OpenBallance</a>
+  <nav>
+    <a href="/guide/">User guide</a>
+    <a href="/guide/browser">Playing in the browser</a>
+    <a href="/play/" aria-current="page">Play</a>
+    <a href="https://github.com/emdzej/openballance">GitHub</a>
+  </nav>
+</header>
+
+<main>
+  <section id="setup">
+    <h1>Play Ballance in your browser</h1>
+    <p class="lead">OpenBallance runs here as <code>openballance.wasm</code> on the
+      <a href="https://gasm.emdzej.pl">gasm</a> runtime: the same engine as on the desktop, running the original
+      game's scripts, levels, textures, sounds and music from <strong>your own copy of Ballance</strong>.
+      Nothing from the game is on this site, and nothing you pick leaves your computer.</p>
+
+    <div class="cols">
+      <div class="card">
+        <h2>What you need</h2>
+        <ul>
+          <li><strong>Ballance</strong> (Cyparade / Atari, 2004): the folder you installed it to (the one with
+            <code>base.cmo</code>), the CD (the folder with <code>Setup</code>), or an image of the CD
+            (<code>.iso</code> or a raw <code>.bin</code>).</li>
+          <li>A browser with <strong>WebGPU</strong>: a recent Chrome or Edge, Safari 26 or newer, or Firefox 141
+            or newer on Windows. <span id="webgpu" class="small"></span></li>
+          <li>About 150 MB of browser storage: the page copies the data into its private storage for this
+            site once, so later visits start at once.</li>
+          <li>A keyboard or a gamepad.</li>
+        </ul>
+      </div>
+      <div class="card" id="choose">
+        <h2 id="choose-title">Choose your Ballance</h2>
+        <div id="imported" hidden>
+          <p><strong>Imported:</strong> <span id="imported-desc"></span></p>
+          <div class="row">
+            <button id="play-opfs" class="primary">Play</button>
+            <button id="remove">Remove imported data</button>
+          </div>
+          <p class="small" id="storage"></p>
+          <p class="small" id="persist-row" hidden>The browser may clear site data when disk space runs low.
+            <button id="persist" class="link">Keep it</button></p>
+          <p class="small">Or choose the game again below to replace it.</p>
+        </div>
+        <div class="row">
+          <button id="pick-folder" class="primary">Choose your Ballance folder</button>
+          <button id="pick-image" class="link">or a disc image (.iso, .bin)</button>
+        </div>
+        <p class="small">The installed game (for example <code>C:\Program Files\Ballance</code>, with
+          <code>base.cmo</code>, <code>3D Entities</code>, <code>Sounds</code> and <code>Textures</code>), or the CD
+          itself or a copy of it (with <code>Setup\data1.hdr</code>): the game is read straight from the installer's
+          cabinets, no installation needed.</p>
+        <input id="folder-input" type="file" webkitdirectory multiple hidden>
+        <input id="image-input" type="file" accept=".iso,.bin,.img,.cue" hidden>
+
+        <div id="check" hidden>
+          <ul id="check-list" class="checks"></ul>
+          <div class="row" id="check-actions">
+            <button id="import" class="primary">Import and play</button>
+            <button id="play-direct">Play without importing</button>
+          </div>
+          <p class="small">Importing copies the files into this site's private browser storage (OPFS).
+            Playing without importing reads them from what you picked, which you'll need to pick again
+            next time.</p>
+        </div>
+
+        <div id="progress" hidden>
+          <progress id="progress-bar" max="1" value="0"></progress>
+          <p class="small" id="progress-text"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="game" hidden>
+    <div id="stage" class="stage">
+      <canvas id="screen" width="960" height="720" aria-label="Ballance" tabindex="0"></canvas>
+    </div>
+    <div class="toolbar">
+      <button id="fullscreen">Fullscreen</button>
+      <button id="sound">Sound: on</button>
+      <button id="keys">Keyboard layout</button>
+      <button id="stop">Stop</button>
+      <span id="status" class="small"></span>
+    </div>
+  </section>
+
+  <p id="message" class="message" role="status" hidden></p>
+
+  <section id="controls">
+    <h2>Controls</h2>
+    <p>gasm gives the game a gamepad; OpenBallance turns it into the keys the original reads. A connected
+      gamepad works too. More in <a href="/guide/controls">Controls</a>.</p>
+    <table>
+      <thead><tr><th>Pad</th><th>Original key</th><th>In the game</th><th>Your keys</th></tr></thead>
+      <tbody id="controls-body"></tbody>
+    </table>
+    <p class="small">Esc is not used (browsers keep it for leaving fullscreen): pause with the B key
+      (<code>Z</code> by default). Highscore names are typed on the keyboard. Highscores and the options are
+      kept in this browser.</p>
+  </section>
+</main>
+
+<dialog id="keys-dialog">
+  <form method="dialog">
+    <h2>Keyboard layout</h2>
+    <p class="small">One binding per line: <code>&lt;pad 1-4&gt; &lt;button&gt; &lt;key code&gt;...</code>. Buttons:
+      <code>a b x y l r select start up down left right</code>; key codes are
+      <a href="https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values">KeyboardEvent.code</a>
+      names. The same format as <code>gasm-run --keymap</code>. The game reads pad 1.</p>
+    <textarea id="keymap-text" rows="18" spellcheck="false"></textarea>
+    <p id="keymap-error" class="error"></p>
+    <div class="row">
+      <button id="keymap-save" class="primary" value="save">Save</button>
+      <button id="keymap-reset" value="reset">Default</button>
+      <button value="cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<footer class="foot"><p class="powered">Powered by <a href="https://gasm.emdzej.pl"><img src="https://gasm.emdzej.pl/badge/built-for-gasm-dark.svg" alt="Built for gasm" width="120" height="44"></a></p>
+  OpenBallance is released under the GPL-3.0. Ballance is &copy; 2004 Cyparade / Atari.
+  OpenBallance contains no original code or assets.</footer>
+
+<script type="module" src="play.js"></script>
+</body>
+</html>

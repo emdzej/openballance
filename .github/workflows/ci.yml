@@ -1,0 +1,95 @@
+name: CI
+
+# Builds the native engine library and every test program, the gasm module openballance.wasm and the gasm
+# bundles (macOS, Linux, Windows; smoke-tested on macOS and Linux x86_64) on each push / PR.
+# The tests need the original game data (not redistributable), so CI only compiles them; run them locally
+# with your copy of Ballance (OPENBALLANCE_DATA, default ./data).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: build (engine + tests)
+        run: cmake --build build -j
+      - name: check Python tools compile
+        run: python3 -m py_compile tools/*.py
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The SDK version lives in tools/fetch-gasm-sdk.sh (GASM_VERSION, 0.4.0: the gfx API).
+      - name: fetch wasi-sdk and the gasm C SDK
+        run: tools/fetch-gasm-sdk.sh
+
+      - name: configure (gasm)
+        run: >-
+          cmake -S . -B build-gasm -DOPENBALLANCE_PLATFORM=gasm -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=.deps/gasm-c-sdk/cmake/gasm-toolchain.cmake
+          -DWASI_SDK_PREFIX="$PWD/.deps/wasi-sdk"
+
+      - name: build openballance.wasm
+        run: |
+          cmake --build build-gasm -j
+          ls -l build-gasm/openballance.wasm
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: openballance-wasm
+          path: build-gasm/openballance.wasm
+          retention-days: 14
+
+  # The gasm bundles (tools/package-gasm.sh) from the module above, smoke-tested without game data.
+  gasm-bundle-macos:
+    needs: wasm
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: openballance-wasm
+          path: wasm
+      - name: package and smoke test
+        run: |
+          OPENBALLANCE_WASM=wasm/openballance.wasm tools/package-gasm.sh "0.0.0-ci.${GITHUB_SHA::7}" macos-universal \
+            "$(tools/fetch-gasm-runner.sh macos-universal)" dist
+          tools/smoke-gasm-bundle.sh dist/openballance-gasm-*-macos-universal.zip
+
+  gasm-bundle-linux:
+    needs: wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: openballance-wasm
+          path: wasm
+      - name: shellcheck the launchers and scripts
+        run: shellcheck tools/package-gasm.sh tools/fetch-gasm-*.sh tools/smoke-gasm-bundle.sh tools/gasm-bundle/*.sh docs/scripts/*.sh
+      - name: package (Linux x86_64 and arm64, Windows x86_64)
+        run: |
+          for p in linux-x86_64 linux-arm64 windows-x86_64; do
+            OPENBALLANCE_WASM=wasm/openballance.wasm tools/package-gasm.sh "0.0.0-ci.${GITHUB_SHA::7}" "$p" \
+              "$(tools/fetch-gasm-runner.sh "$p")" dist
+          done
+      - name: runtime libraries (ALSA)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libasound2t64
+      - name: smoke test (Linux x86_64)
+        run: tools/smoke-gasm-bundle.sh dist/openballance-gasm-*-linux-x86_64.tar.gz

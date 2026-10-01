@@ -1,0 +1,187 @@
+name: Release
+
+# Triggered by plain semver tags (no "v" prefix): `git tag 0.1.0 && git push origin 0.1.0`.
+# Builds the gasm module openballance-<version>.wasm and the gasm bundles (openballance.wasm + the released
+# gasm-run, GASM_VERSION in tools/fetch-gasm-sdk.sh) for macOS, Linux x86_64/arm64 and Windows x86_64,
+# smoke-tests each bundle on its own OS, and attaches everything (with SHA-256 files) to a GitHub Release.
+# workflow_dispatch builds the same files as artifacts only.
+
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+    inputs:
+      snapshot:
+        description: 'Build artifacts only, no GitHub Release'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # to create the Release and upload assets
+
+jobs:
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: version
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then v="$GITHUB_REF_NAME"; else v="0.0.0-snapshot.${GITHUB_SHA::7}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: fetch wasi-sdk and the gasm C SDK
+        run: tools/fetch-gasm-sdk.sh
+
+      - name: build openballance.wasm
+        run: |
+          cmake -S . -B build-gasm -DOPENBALLANCE_PLATFORM=gasm -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=.deps/gasm-c-sdk/cmake/gasm-toolchain.cmake -DWASI_SDK_PREFIX="$PWD/.deps/wasi-sdk"
+          cmake --build build-gasm -j
+          name="openballance-${{ steps.ver.outputs.version }}.wasm"
+          cp build-gasm/openballance.wasm "$name"
+          sha256sum "$name" > "$name.sha256"
+          ls -l "$name"
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: openballance-wasm
+          path: openballance-*.wasm*
+          retention-days: 14
+
+  gasm-macos:
+    needs: wasm
+    runs-on: macos-latest   # iconutil, codesign (ad hoc)
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: openballance-wasm
+          path: wasm
+      - name: package
+        run: |
+          v=$(basename wasm/openballance-*.wasm .wasm); v=${v#openballance-}
+          OPENBALLANCE_WASM=$(ls wasm/openballance-*.wasm) tools/package-gasm.sh "$v" macos-universal \
+            "$(tools/fetch-gasm-runner.sh macos-universal)" dist
+      - name: smoke test (no game data)
+        run: tools/smoke-gasm-bundle.sh dist/openballance-gasm-*-macos-universal.zip
+      - uses: actions/upload-artifact@v7
+        with:
+          name: openballance-gasm-macos-universal
+          path: dist/openballance-gasm-*.zip*
+          retention-days: 14
+
+  gasm-package:
+    needs: wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: openballance-wasm
+          path: wasm
+      - name: package (Linux x86_64 and arm64, Windows x86_64)
+        run: |
+          v=$(basename wasm/openballance-*.wasm .wasm); v=${v#openballance-}
+          for p in linux-x86_64 linux-arm64 windows-x86_64; do
+            OPENBALLANCE_WASM=$(ls wasm/openballance-*.wasm) tools/package-gasm.sh "$v" "$p" "$(tools/fetch-gasm-runner.sh "$p")" "dist/$p"
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: openballance-gasm-linux-x86_64
+          path: dist/linux-x86_64/*
+          retention-days: 14
+      - uses: actions/upload-artifact@v7
+        with:
+          name: openballance-gasm-linux-arm64
+          path: dist/linux-arm64/*
+          retention-days: 14
+      - uses: actions/upload-artifact@v7
+        with:
+          name: openballance-gasm-windows-x86_64
+          path: dist/windows-x86_64/*
+          retention-days: 14
+
+  gasm-smoke-linux:
+    needs: gasm-package
+    strategy:
+      matrix:
+        include:
+          - { arch: x86_64, os: ubuntu-latest }
+          - { arch: arm64, os: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: openballance-gasm-linux-${{ matrix.arch }}
+          path: dist
+      - name: runtime libraries (ALSA)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libasound2t64
+      - name: smoke test (no game data)
+        run: tools/smoke-gasm-bundle.sh dist/openballance-gasm-*-linux-${{ matrix.arch }}.tar.gz
+
+  gasm-smoke-windows:
+    needs: gasm-package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: openballance-gasm-windows-x86_64
+          path: dist
+      - name: smoke test (no game data)
+        shell: pwsh
+        env:
+          OPENBALLANCE_NO_PAUSE: '1'
+        run: |
+          $zip = Get-ChildItem dist/openballance-gasm-*-windows-x86_64.zip | Select-Object -First 1
+          Expand-Archive $zip.FullName -DestinationPath unpacked
+          $d = (Get-ChildItem unpacked -Directory | Select-Object -First 1).FullName
+          foreach ($f in 'gasm-run.exe', 'openballance.wasm', 'OpenBallance.cmd', 'openballance.ps1') {
+            if (-not (Test-Path (Join-Path $d $f))) { throw "missing $f" }
+          }
+          # No data: OpenBallance's clean error, exit code 1 (not a crash).
+          $out = & "$d\gasm-run.exe" "$d\openballance.wasm" --headless 5 --mute 2>&1 | Out-String
+          $rc = $LASTEXITCODE
+          $out
+          if ($rc -ne 1) { throw "gasm-run without data: exit $rc, expected 1" }
+          if ($out -notmatch 'game data not found') { throw "no 'game data not found' message" }
+          # The launcher (no dialogs: OPENBALLANCE_DATA / --dry-run, scratch APPDATA).
+          $env:APPDATA = Join-Path $PWD 'appdata'
+          $help = & "$d\OpenBallance.cmd" --help | Out-String
+          if ($LASTEXITCODE -ne 0 -or $help -notmatch 'OpenBallance') { throw '--help' }
+          New-Item -ItemType Directory -Force game | Out-Null
+          New-Item -ItemType File -Force game\base.cmo, ballance.iso | Out-Null
+          $env:OPENBALLANCE_DATA = Join-Path $PWD 'game'
+          $cmd = & "$d\OpenBallance.cmd" --dry-run --param unlockall=1 | Out-String
+          $cmd
+          if ($LASTEXITCODE -ne 0 -or $cmd -notmatch '--asset-dir' -or $cmd -notmatch 'unlockall=1') { throw 'dry run with a folder' }
+          $env:OPENBALLANCE_DATA = Join-Path $PWD 'ballance.iso'
+          $cmd = & "$d\OpenBallance.cmd" --dry-run | Out-String
+          if ($LASTEXITCODE -ne 0 -or $cmd -notmatch '--rom') { throw 'dry run with an image' }
+          if (Test-Path (Join-Path $env:APPDATA 'OpenBallance\data-location')) { throw 'a dry run saved the data location' }
+          $global:LASTEXITCODE = 0
+          'PASS'
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [wasm, gasm-macos, gasm-package, gasm-smoke-linux, gasm-smoke-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" artifacts/*
+          --title "OpenBallance $GITHUB_REF_NAME"
+          --generate-notes
+          --notes-file .github/release-notes.md

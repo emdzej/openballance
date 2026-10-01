@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Ballance (OpenBallance)
+GenericName=Puzzle game
+Comment=OpenBallance, a reimplementation of Ballance (2004), on gasm. Needs your Ballance CD or installed game.
+Exec="@DIR@/openballance.sh"
+Icon=@DIR@/openballance.png
+Terminal=false
+Categories=Game;LogicGame;

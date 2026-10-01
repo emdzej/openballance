@@ -1,0 +1,38 @@
+# Original game data and anything derived from it (copyrighted: never commit)
+/cd/
+/game/
+/data
+/re/
+/out/
+*.iso
+*.cue
+*.mdf
+*.nrg
+
+# Build output
+/build/
+/build*/
+/dist/
+
+# Docs site
+node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/public/play/*.wasm
+
+# Play page runtime, copied from npm by docs/scripts/vendor-web.sh
+docs/public/play/vendor/
+
+# Downloaded toolchains and runners (tools/fetch-gasm-sdk.sh, tools/fetch-gasm-runner.sh)
+/.deps/
+
+# Python
+tools/.venv/
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+*.swp
+.vscode/
+.idea/
