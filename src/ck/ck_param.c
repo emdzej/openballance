@@ -90,16 +90,25 @@ float ck_input_float(CkContext *ctx, CkBehavior *b, uint32_t i)
     return r;
 }
 
+/* CKParameterOut::DataChanged: every destination gets the value, and a destination that is itself an output
+   (a behaviour graph's output parameter exporting an inner one) passes it on to its own destinations */
+static void data_changed(CkContext *ctx, CkParameter *p, const void *v, uint32_t size, int depth)
+{
+    if (depth > 16) return;
+    for (uint32_t k = 0; k < p->dests.n; k++) {
+        CkParameter *d = ck_param(ctx, p->dests.v[k]);
+        if (!d || d == p || d->kind == CKP_IN) continue;
+        ck_param_set(d, v, size);
+        if (d->dests.n) data_changed(ctx, d, v, size, depth + 1);
+    }
+}
+
 void ck_output_set(CkContext *ctx, CkBehavior *b, uint32_t i, const void *v, uint32_t size)
 {
     CkParameter *p = i < b->pout.n ? ck_param(ctx, b->pout.v[i]) : NULL;
     if (!p) return;
     ck_param_set(p, v, size);
-    /* CKParameterOut::DataChanged: destinations (e.g. parameters of other objects) get the new value */
-    for (uint32_t k = 0; k < p->dests.n; k++) {
-        CkParameter *d = ck_param(ctx, p->dests.v[k]);
-        if (d && d != p && d->kind != CKP_IN) ck_param_set(d, v, size);
-    }
+    data_changed(ctx, p, v, size, 0);
 }
 
 CkId ck_behavior_target(CkContext *ctx, CkBehavior *b)

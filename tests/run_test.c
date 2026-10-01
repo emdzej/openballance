@@ -370,6 +370,26 @@ int main(int argc, char **argv)
                 }
             }
         }
+        /* env MOVEENT="name@x,y,z>X,Y,Z:frame": at that frame, entities called name within 1 unit of (x,y,z) are
+           moved to (X,Y,Z) (testing: e.g. a transformer onto the ball) */
+        for (int mi = 0; mi < 2; mi++) {
+        const char *me = getenv(mi ? "MOVEENT2" : "MOVEENT");
+        if (me && strchr(me, ':') && atoi(strrchr(me, ':') + 1) == f) {
+            char name[128];
+            float a[3], t[3];
+            if (sscanf(me, "%127[^@]@%f,%f,%f>%f,%f,%f", name, &a[0], &a[1], &a[2], &t[0], &t[1], &t[2]) == 7)
+                for (uint32_t i = 0; i < ctx.nobjs; i++) {
+                    CkObj *o = ctx.objs[i];
+                    if (!o || !ck_is_3dentity_class(o->cid) || strcmp(o->name, name)) continue;
+                    Ck3dEntity *e = (Ck3dEntity *)o;
+                    float d = 0;
+                    for (int j = 0; j < 3; j++) d += (e->world[3][j] - a[j]) * (e->world[3][j] - a[j]);
+                    if (d > 1) continue;
+                    ck_entity_set_position(&ctx, e, t, 0, false);
+                    printf("f%d moved %s #%u\n", f, o->name, o->id);
+                }
+        }
+        }
         /* env MEMSTAT=n: heap bytes in use every n frames (macOS) */
 #ifdef __APPLE__
         const char *ms = getenv("MEMSTAT");
