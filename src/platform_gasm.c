@@ -1,4 +1,4 @@
-/* gasm platform backend for openballance.wasm (gasm ABI 0 with gasm:gfx as of 0.4.0). The only file that
+/* gasm platform backend for openballance.wasm (gasm ABI 0 with gasm:gfx and raw input as of 0.5.0). The only file that
    includes gasm.h. Exports: gasm_init (mount the data, app_init), gasm_frame (app_frame), gasm_exit.
 
    Game data, the first that has the game (see mount_game):
@@ -39,6 +39,74 @@ int plat_text_input(char *dst, size_t cap)
     return (int)n;
 }
 bool plat_param(const char *name, char *dst, size_t cap) { return gasm_param_str(name, dst, (uint32_t)cap); }
+
+/* ---- raw keyboard and pointer (gasm 0.5) ---- */
+
+/* GASM_KEY_* (W3C KeyboardEvent.code) -> DirectInput scan code (DIK_*), what Ballance's input manager reads */
+static const struct { uint8_t key, dik; } DIK_OF[] = {
+    {GASM_KEY_ESCAPE, 0x01}, {GASM_KEY_DIGIT1, 0x02}, {GASM_KEY_DIGIT2, 0x03}, {GASM_KEY_DIGIT3, 0x04},
+    {GASM_KEY_DIGIT4, 0x05}, {GASM_KEY_DIGIT5, 0x06}, {GASM_KEY_DIGIT6, 0x07}, {GASM_KEY_DIGIT7, 0x08},
+    {GASM_KEY_DIGIT8, 0x09}, {GASM_KEY_DIGIT9, 0x0a}, {GASM_KEY_DIGIT0, 0x0b}, {GASM_KEY_MINUS, 0x0c},
+    {GASM_KEY_EQUAL, 0x0d}, {GASM_KEY_BACKSPACE, 0x0e}, {GASM_KEY_TAB, 0x0f}, {GASM_KEY_KEY_Q, 0x10},
+    {GASM_KEY_KEY_W, 0x11}, {GASM_KEY_KEY_E, 0x12}, {GASM_KEY_KEY_R, 0x13}, {GASM_KEY_KEY_T, 0x14},
+    {GASM_KEY_KEY_Y, 0x15}, {GASM_KEY_KEY_U, 0x16}, {GASM_KEY_KEY_I, 0x17}, {GASM_KEY_KEY_O, 0x18},
+    {GASM_KEY_KEY_P, 0x19}, {GASM_KEY_BRACKET_LEFT, 0x1a}, {GASM_KEY_BRACKET_RIGHT, 0x1b},
+    {GASM_KEY_ENTER, 0x1c}, {GASM_KEY_CONTROL_LEFT, 0x1d}, {GASM_KEY_KEY_A, 0x1e}, {GASM_KEY_KEY_S, 0x1f},
+    {GASM_KEY_KEY_D, 0x20}, {GASM_KEY_KEY_F, 0x21}, {GASM_KEY_KEY_G, 0x22}, {GASM_KEY_KEY_H, 0x23},
+    {GASM_KEY_KEY_J, 0x24}, {GASM_KEY_KEY_K, 0x25}, {GASM_KEY_KEY_L, 0x26}, {GASM_KEY_SEMICOLON, 0x27},
+    {GASM_KEY_QUOTE, 0x28}, {GASM_KEY_BACKQUOTE, 0x29}, {GASM_KEY_SHIFT_LEFT, 0x2a}, {GASM_KEY_BACKSLASH, 0x2b},
+    {GASM_KEY_KEY_Z, 0x2c}, {GASM_KEY_KEY_X, 0x2d}, {GASM_KEY_KEY_C, 0x2e}, {GASM_KEY_KEY_V, 0x2f},
+    {GASM_KEY_KEY_B, 0x30}, {GASM_KEY_KEY_N, 0x31}, {GASM_KEY_KEY_M, 0x32}, {GASM_KEY_COMMA, 0x33},
+    {GASM_KEY_PERIOD, 0x34}, {GASM_KEY_SLASH, 0x35}, {GASM_KEY_SHIFT_RIGHT, 0x36}, {GASM_KEY_NUMPAD_MULTIPLY, 0x37},
+    {GASM_KEY_ALT_LEFT, 0x38}, {GASM_KEY_SPACE, 0x39}, {GASM_KEY_CAPS_LOCK, 0x3a}, {GASM_KEY_F1, 0x3b},
+    {GASM_KEY_F2, 0x3c}, {GASM_KEY_F3, 0x3d}, {GASM_KEY_F4, 0x3e}, {GASM_KEY_F5, 0x3f}, {GASM_KEY_F6, 0x40},
+    {GASM_KEY_F7, 0x41}, {GASM_KEY_F8, 0x42}, {GASM_KEY_F9, 0x43}, {GASM_KEY_F10, 0x44}, {GASM_KEY_NUM_LOCK, 0x45},
+    {GASM_KEY_SCROLL_LOCK, 0x46}, {GASM_KEY_NUMPAD7, 0x47}, {GASM_KEY_NUMPAD8, 0x48}, {GASM_KEY_NUMPAD9, 0x49},
+    {GASM_KEY_NUMPAD_SUBTRACT, 0x4a}, {GASM_KEY_NUMPAD4, 0x4b}, {GASM_KEY_NUMPAD5, 0x4c}, {GASM_KEY_NUMPAD6, 0x4d},
+    {GASM_KEY_NUMPAD_ADD, 0x4e}, {GASM_KEY_NUMPAD1, 0x4f}, {GASM_KEY_NUMPAD2, 0x50}, {GASM_KEY_NUMPAD3, 0x51},
+    {GASM_KEY_NUMPAD0, 0x52}, {GASM_KEY_NUMPAD_DECIMAL, 0x53}, {GASM_KEY_INTL_BACKSLASH, 0x56}, {GASM_KEY_F11, 0x57},
+    {GASM_KEY_F12, 0x58}, {GASM_KEY_F13, 0x64}, {GASM_KEY_F14, 0x65}, {GASM_KEY_F15, 0x66}, {GASM_KEY_INTL_RO, 0x73},
+    {GASM_KEY_INTL_YEN, 0x7d}, {GASM_KEY_NUMPAD_EQUAL, 0x8d}, {GASM_KEY_NUMPAD_ENTER, 0x9c},
+    {GASM_KEY_CONTROL_RIGHT, 0x9d}, {GASM_KEY_NUMPAD_COMMA, 0xb3}, {GASM_KEY_NUMPAD_DIVIDE, 0xb5},
+    {GASM_KEY_PRINT_SCREEN, 0xb7}, {GASM_KEY_ALT_RIGHT, 0xb8}, {GASM_KEY_PAUSE, 0xc5}, {GASM_KEY_HOME, 0xc7},
+    {GASM_KEY_ARROW_UP, 0xc8}, {GASM_KEY_PAGE_UP, 0xc9}, {GASM_KEY_ARROW_LEFT, 0xcb}, {GASM_KEY_ARROW_RIGHT, 0xcd},
+    {GASM_KEY_END, 0xcf}, {GASM_KEY_ARROW_DOWN, 0xd0}, {GASM_KEY_PAGE_DOWN, 0xd1}, {GASM_KEY_INSERT, 0xd2},
+    {GASM_KEY_DELETE, 0xd3}, {GASM_KEY_META_LEFT, 0xdb}, {GASM_KEY_META_RIGHT, 0xdc}, {GASM_KEY_CONTEXT_MENU, 0xdd},
+};
+
+bool plat_dik_keys(uint8_t dik[256])
+{
+    uint8_t bits[GASM_KEY_STATE_BYTES];
+    memset(dik, 0, 256);
+    if (gasm_key_state(bits, sizeof bits) < 0) return false;
+    for (size_t i = 0; i < sizeof DIK_OF / sizeof *DIK_OF; i++)
+        if (bits[DIK_OF[i].key >> 3] & (1u << (DIK_OF[i].key & 7))) dik[DIK_OF[i].dik] = 1;
+    return true;
+}
+
+bool plat_pointer(float *x, float *y, uint32_t *buttons)
+{
+    uint8_t p[GASM_POINTER_BYTES];
+    if (gasm_pointer(p, sizeof p) < 0) return false;
+    memcpy(x, p + 0, 4);
+    memcpy(y, p + 4, 4);
+    memcpy(buttons, p + 32, 4);
+    return true;
+}
+
+/* input_mode: raw keys always (Ballance reads the keyboard itself), the cursor as the game shows it */
+static void input_mode(bool cursor)
+{
+    gasm_input_mode(GASM_INPUT_KEYS_RAW | (cursor ? 0u : GASM_INPUT_POINTER_HIDDEN));
+}
+
+void plat_cursor(bool visible)
+{
+    static int last = -1;
+    if (last == (int)visible) return;
+    last = visible;
+    input_mode(visible);
+}
 
 uint8_t *plat_load_user_file(const char *name, size_t *size)
 {
@@ -187,6 +255,7 @@ GASM_EXPORT("gasm_init") int32_t ob_gasm_init(void)
 {
     gasm_set_frame_rate(60);
     gasm_audio_config(44100, 2);
+    input_mode(false);
     if (!mount_game()) {
         plat_log("OpenBallance: game data not found. Pass one of: the installed Ballance folder "
                  "(gasm-run openballance.wasm --asset-dir <folder with base.cmo>), the Ballance CD's files "

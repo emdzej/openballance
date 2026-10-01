@@ -99,7 +99,6 @@
     <div class="toolbar">
       <button id="fullscreen">Fullscreen</button>
       <button id="sound">Sound: on</button>
-      <button id="keys">Keyboard layout</button>
       <button id="stop">Stop</button>
       <span id="status" class="small"></span>
     </div>
@@ -109,34 +108,27 @@
 
   <section id="controls">
     <h2>Controls</h2>
-    <p>gasm gives the game a gamepad; OpenBallance turns it into the keys the original reads. A connected
-      gamepad works too. More in <a href="/guide/controls">Controls</a>.</p>
+    <p>The game reads the keyboard and the mouse directly, with the original's keys. A connected gamepad
+      works too. More in <a href="/guide/controls">Controls</a>.</p>
     <table>
-      <thead><tr><th>Pad</th><th>Original key</th><th>In the game</th><th>Your keys</th></tr></thead>
-      <tbody id="controls-body"></tbody>
+      <thead><tr><th>Key</th><th>In the game</th><th>Gamepad</th></tr></thead>
+      <tbody>
+        <tr><td>Arrow keys</td><td>Roll the ball; menus: choose</td><td>D-pad</td></tr>
+        <tr><td>Enter</td><td>Select, continue the tutorial</td><td>A, Start</td></tr>
+        <tr><td>Esc (tap)</td><td>Pause menu, back</td><td>B</td></tr>
+        <tr><td>Shift + Left / Right</td><td>Rotate the camera around the ball</td><td>L / R + d-pad</td></tr>
+        <tr><td>Space</td><td>Raise the camera (look ahead)</td><td>X</td></tr>
+        <tr><td>Q</td><td>Quit the tutorial</td><td>Y</td></tr>
+        <tr><td>Mouse</td><td>Menus: point and click (move it to show the cursor)</td><td></td></tr>
+      </tbody>
     </table>
-    <p class="small">Esc is not used (browsers keep it for leaving fullscreen): pause with the B key
-      (<code>Z</code> by default). Highscore names are typed on the keyboard. Highscores and the options are
-      kept in this browser.</p>
+    <p class="small">Holding Esc for a second stops the game. In fullscreen the browser takes Esc to leave
+      fullscreen. The keys can be changed in the game's own Options. Highscores and the options are kept in
+      this browser.</p>
   </section>
 </main>
 
-<dialog id="keys-dialog">
-  <form method="dialog">
-    <h2>Keyboard layout</h2>
-    <p class="small">One binding per line: <code>&lt;pad 1-4&gt; &lt;button&gt; &lt;key code&gt;...</code>. Buttons:
-      <code>a b x y l r select start up down left right</code>; key codes are
-      <a href="https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values">KeyboardEvent.code</a>
-      names. The same format as <code>gasm-run --keymap</code>. The game reads pad 1.</p>
-    <textarea id="keymap-text" rows="18" spellcheck="false"></textarea>
-    <p id="keymap-error" class="error"></p>
-    <div class="row">
-      <button id="keymap-save" class="primary" value="save">Save</button>
-      <button id="keymap-reset" value="reset">Default</button>
-      <button value="cancel">Cancel</button>
-    </div>
-  </form>
-</dialog>
+
 
 <footer class="foot"><p class="powered">Powered by <a href="https://gasm.emdzej.pl"><img src="https://gasm.emdzej.pl/badge/built-for-gasm-dark.svg" alt="Built for gasm" width="120" height="44"></a></p>
   OpenBallance is released under the GPL-3.0. Ballance is &copy; 2004 Cyparade / Atari.

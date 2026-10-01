@@ -16,6 +16,13 @@ void plat_log(const char *msg);
 uint32_t plat_pad(int player);          /* stable within a frame */
 /* UTF-8 text typed since the previous frame (backspace \b, enter \n); length, or -1 without keyboard */
 int plat_text_input(char *dst, size_t cap);
+/* Raw keyboard (gasm 0.5 key_state): the held keys as DirectInput codes (dik[DIK_*] = 1); false if the
+   runner has no keyboard (then typed text stands in, plat_text_input). */
+bool plat_dik_keys(uint8_t dik[256]);
+/* The pointer in drawable pixels and its buttons (bit 0 left, 1 right, 2 middle); false without one. */
+bool plat_pointer(float *x, float *y, uint32_t *buttons);
+/* The system cursor over the game: shown (Show Mouse Cursor) or hidden. */
+void plat_cursor(bool visible);
 /* Launch parameter (gasm --param / URL query); false if unset. */
 bool plat_param(const char *name, char *dst, size_t cap);
 /* Persistent user files (saves). */

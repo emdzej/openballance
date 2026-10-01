@@ -9,6 +9,7 @@
 - The physics: a port of the Ipion (IVP) engine's core, collision detection, friction and impact systems.
   Balls roll, rest, bounce and fall asleep the way the original's code says they should.
 - Sound effects and music, including rolling and collision sounds.
+- The original's keyboard and mouse controls, including the key settings in Options.
 - Highscores and settings, saved through gasm's storage.
 - Reading the data from the CD image, the mounted CD (InstallShield cabinets) or an installed copy.
 

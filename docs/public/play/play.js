@@ -12,7 +12,7 @@
 //                  (globalThis.__openballanceResult)
 //   autoplay       start the imported data right away
 //   main           run on the main thread even if the worker could
-import { AssetTable, DEFAULT_KEYMAP, GasmHost, IdbStorage, MemoryStorage, ProcExit, Resampler, keyboardPads, parseKeymap, preloadAssets } from './vendor/gasm/gasm-host.js';
+import { AssetTable, BrowserInput, GasmHost, INPUT_KEYS_RAW, IdbStorage, MemoryStorage, ProcExit, Resampler, preloadAssets } from './vendor/gasm/gasm-host.js';
 import { GasmWorker } from './vendor/gasm/gasm-worker.js';
 import { WebGpuGfx } from './vendor/gasm/webgpu-gfx.js';
 import * as cd from './cd.js';
@@ -35,30 +35,27 @@ function message(text, kind = 'info') {
 }
 const show = (id, on) => { $(id).hidden = !on; };
 
-// ---- keyboard layout, typed text and gamepads ---------------------------------------------------
-const KEYMAP_KEY = 'openballance.keymap';
-// OpenBallance's layout (tools/gasm-bundle/keymap.txt: both Shift keys on L, so Shift + arrows rotate the
-// view as in the original); gasm's built-in layout if it can't be fetched.
-const BALLANCE_KEYMAP = await fetch(new URL('./keymap.txt', import.meta.url)).then((r) => (r.ok ? r.text() : DEFAULT_KEYMAP)).catch(() => DEFAULT_KEYMAP);
-let keymapText = localStorage.getItem(KEYMAP_KEY) ?? BALLANCE_KEYMAP;
-let keymap = parseKeymap(keymapText);
-if (keymap.errors.length) { keymapText = BALLANCE_KEYMAP; keymap = parseKeymap(BALLANCE_KEYMAP); }
-
-const held = new Set();
-let typed = '';                         // text_input: characters typed since the last frame (highscore names)
+// ---- keyboard, pointer, typed text and gamepads ------------------------------------------------
+// The game reads the raw keyboard and the pointer itself (gasm 0.5 input_mode KEYS_RAW: src/app.c maps
+// the keys to the DirectInput codes Ballance reads), so every key works as in the original. Gamepads come
+// in as pad 1. BrowserInput follows the current canvas (each run gets a fresh one).
+let rawInput = null;
+const inputMode = () => (worker ?? host)?.inputMode ?? 0;
+// Escape: a tap goes to the game (the pause menu); holding it for a second stops the game.
+let escDown = 0;
+let typed = '';                         // text_input (the game reads it only without a raw keyboard)
 const typing = (e) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 addEventListener('keydown', (e) => {
-  if (!running || typing(e) || $('keys-dialog').open) return;
+  if (!running || typing(e)) return;
+  if (e.code === 'Escape' && !e.repeat) escDown = performance.now();
+  // the game gets every key: Space doesn't scroll, Backspace doesn't go back, F1 doesn't open help
+  if (inputMode() & INPUT_KEYS_RAW && e.code !== 'Escape' && !e.metaKey && !e.ctrlKey) e.preventDefault();
   if (e.key === 'Enter') typed += '\n';
   else if (e.key === 'Backspace') typed += '\b';
   else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) typed += e.key;
-  if (e.key === 'Backspace' || e.key === ' ') e.preventDefault();   // no "back" navigation or page scroll
-  if (!keymap.bindings.has(e.code)) return;
-  held.add(e.code);
-  e.preventDefault();
 });
-addEventListener('keyup', (e) => held.delete(e.code));
-addEventListener('blur', () => held.clear());
+addEventListener('keyup', (e) => { if (e.code === 'Escape') escDown = 0; });
+addEventListener('blur', () => { escDown = 0; });
 const takeTyped = () => { const t = typed; typed = ''; return t; };
 
 // W3C "standard" gamepad mapping -> gasm button bit (A east, B south, X north, Y west, like gasm's app.js).
@@ -75,64 +72,8 @@ function readPads() {
     if (y < -0.5) m |= 1 << 8; if (y > 0.5) m |= 1 << 9;
     pads[n++] |= m;
   }
-  const kb = keyboardPads(keymap.bindings, held, n);
-  return pads.map((p, i) => p | kb[i]);
+  return pads;
 }
-
-// Controls table from the active layout (src/app.c read_input: pad 1 -> the keys the game reads).
-const KEY_NAMES = {
-  ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', Period: 'Period', Comma: 'Comma',
-  Slash: '/', Semicolon: ';', Quote: "'", ShiftRight: 'Right Shift', ShiftLeft: 'Left Shift',
-  ControlRight: 'Right Ctrl', ControlLeft: 'Left Ctrl', NumpadEnter: 'Keypad Enter', AltRight: 'Right Alt',
-  AltLeft: 'Left Alt', Space: 'Space', Enter: 'Enter', Backspace: 'Backspace',
-};
-const keyName = (code) => KEY_NAMES[code] ?? code.replace(/^Key|^Digit/, '').replace(/^Numpad/, 'Keypad ');
-function keysFor(button) {
-  const bit = ['a', 'b', 'x', 'y', 'l', 'r', 'select', 'start', 'up', 'down', 'left', 'right'].indexOf(button);
-  const codes = [...keymap.bindings].filter(([, bs]) => bs.some((b) => b.pad === 0 && b.bit === bit)).map(([c]) => c);
-  return codes.map(keyName).join(' or ') || '-';
-}
-function renderControls() {
-  const arrows = () => {
-    const k = ['up', 'left', 'down', 'right'].map(keysFor);
-    return k.join(' ') === 'Up Left Down Right' ? 'Arrow keys' : k.join(' / ');
-  };
-  const rows = [
-    ['D-pad', 'Arrow keys', 'Roll the ball; menus: choose', arrows],
-    ['A or START', 'Enter', 'Select, continue the tutorial', () => `${keysFor('a')} or ${keysFor('start')}`],
-    ['B', 'Esc', 'Pause menu, back', () => keysFor('b')],
-    ['L / R + Left / Right', 'Shift + arrows', 'Rotate the camera around the ball', () => `${keysFor('l')} or ${keysFor('r')}, with Left / Right`],
-    ['X', 'Space', 'Raise the camera (look ahead)', () => keysFor('x')],
-    ['Y', 'Q', 'Quit the tutorial', () => keysFor('y')],
-    ['SELECT', 'F1', 'F1 (help)', () => keysFor('select')],
-  ];
-  const body = $('controls-body');
-  body.textContent = '';
-  for (const [pad, orig, action, keys] of rows) {
-    const tr = document.createElement('tr');
-    for (const text of [pad, orig, action, keys()]) {
-      const td = document.createElement('td');
-      td.textContent = text;
-      tr.append(td);
-    }
-    body.append(tr);
-  }
-}
-renderControls();
-
-$('keys').onclick = () => {
-  $('keymap-text').value = keymapText;
-  $('keymap-error').textContent = '';
-  $('keys-dialog').showModal();
-};
-$('keymap-save').onclick = (e) => {
-  const text = $('keymap-text').value, k = parseKeymap(text);
-  if (k.errors.length) { e.preventDefault(); $('keymap-error').textContent = k.errors.join('\n'); return; }
-  keymapText = text; keymap = k;
-  if (text === BALLANCE_KEYMAP) localStorage.removeItem(KEYMAP_KEY); else localStorage.setItem(KEYMAP_KEY, text);
-  renderControls();
-};
-$('keymap-reset').onclick = (e) => { e.preventDefault(); $('keymap-text').value = BALLANCE_KEYMAP; $('keymap-error').textContent = ''; };
 
 // ---- audio: the gasm web player's AudioWorklet queue ------------------------------------------
 const WORKLET = `
@@ -204,6 +145,8 @@ function freshCanvas() {
   c.ondblclick = () => $('fullscreen').onclick();
   canvas.replaceWith(c);
   canvas = c;
+  if (rawInput) rawInput.setElement(c);
+  else rawInput = new BrowserInput(c).attach();
   return c;
 }
 /** The canvas' display size in device pixels (an OffscreenCanvas can't measure itself). */
@@ -236,7 +179,7 @@ function onLog(msg) {
 async function stopGame() {
   cancelAnimationFrame(rafId);
   running = false; inflight = false;
-  held.clear(); typed = '';
+  escDown = 0; typed = '';
   const w = worker, h = host;
   worker = null; host = null; gpu = null;
   await w?.exit();          // flushes the saves, releases the OPFS handles
@@ -347,9 +290,11 @@ function tick(now) {
       inflight = true;
       acc -= due * period;
       const texts = Array.from({ length: due }, (_, k) => (k === 0 ? takeTyped() : ''));
-      worker.frames(Array.from({ length: due }, () => pads), true, { texts, size: canvasSize() }).then(() => {
+      const inputs = Array.from({ length: due }, (_, k) => rawInput.frame(k === 0));
+      worker.frames(Array.from({ length: due }, () => pads), true, { texts, inputs, size: canvasSize() }).then(() => {
         inflight = false;
         fpsN += due;
+        rawInput.setMode(worker?.inputMode ?? 0);
       }, stopped);
     }
   } else {
@@ -357,12 +302,15 @@ function tick(now) {
       const pads = readPads();
       host.getPad = (p) => pads[p] ?? 0;
       host.text = step === 0 ? takeTyped() : '';
+      host.input = rawInput.frame(step === 0);
       host.showFrame = step === due - 1;
       gpu.used = false;
       try { host.frame(); } catch (e) { return stopped(e); }
       acc -= period; fpsN++;
     }
   }
+  if (host) rawInput.setMode(host.inputMode);
+  if (escDown && now - escDown >= 1000) { escDown = 0; stopGame().then(endGameView); return; }
   if (acc > period * 4) acc = 0;       // fell far behind: resync
   if (now - fpsT >= 1000) {
     $('status').textContent = `${fpsN} frames/s${worker ? '' : ' (main thread)'}`;

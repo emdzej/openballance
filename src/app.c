@@ -9,6 +9,7 @@
 #include "ck/ck_3d.h"
 #include "ck/ck_sound.h"
 #include "platform.h"
+#include "render/gpu.h"
 #include "render/render.h"
 #include "vfs.h"
 #include <math.h>
@@ -97,6 +98,16 @@ bool app_init(void)
 static void fly(void)
 {
     uint32_t p = plat_pad(0);
+    /* the raw keyboard as the same buttons: arrows, Q / W strafe, X / Z up / down, S / A look down / up */
+    uint8_t k[256];
+    if (plat_dik_keys(k)) {
+        static const struct { uint8_t dik; uint32_t pad; } keys[] = {
+            {0xc8, PAD_UP}, {0xd0, PAD_DOWN}, {0xcb, PAD_LEFT}, {0xcd, PAD_RIGHT}, {0x10, PAD_L}, {0x11, PAD_R},
+            {0x2d, PAD_A}, {0x2c, PAD_B}, {0x1f, PAD_X}, {0x1e, PAD_Y},
+        };
+        for (size_t i = 0; i < sizeof keys / sizeof *keys; i++)
+            if (k[keys[i].dik]) p |= keys[i].pad;
+    }
     float speed = 2.5f, turn = 0.03f;
     float fx = sinf(cam.yaw), fz = cosf(cam.yaw);
     if (p & PAD_UP) cam.pos[0] += fx * speed, cam.pos[2] += fz * speed;
@@ -113,11 +124,14 @@ static void fly(void)
 
 static uint32_t frame_no;
 
-/* The keyboard the game reads (DirectInput key codes) from pad 1 and typed text: d-pad = arrows, A and Start = Enter,
-   B = Escape, X = Space, L and R = left Shift (the view rotation key; Ballance never reads right Shift), Y = Q, Select = F1. Typed characters press
-   their key for the frame. */
+/* The keyboard the game reads (DirectInput key codes): the runner's raw keyboard (gasm 0.5 key_state), so
+   every key works as in the original, including Shift + arrows and keys rebound in Options. Gamepads come
+   in as pad 1: d-pad = arrows, A and Start = Enter, B = Escape, X = Space, L and R = left Shift (the view
+   rotation key), Y = Q, Select = F1. Without a keyboard, typed characters press their key for the frame.
+   The mouse: drawable pixels mapped into the 640x480 render context (the 4:3 picture as render.c letterboxes
+   it). */
 enum { DIK_ESCAPE = 0x01, DIK_1 = 0x02, DIK_0 = 0x0b, DIK_BACK = 0x0e, DIK_Q = 0x10, DIK_RETURN = 0x1c,
-       DIK_LSHIFT = 0x2a, DIK_RSHIFT = 0x36, DIK_SPACE = 0x39, DIK_F1 = 0x3b, DIK_UP = 0xc8, DIK_LEFT = 0xcb,
+       DIK_LSHIFT = 0x2a, DIK_SPACE = 0x39, DIK_F1 = 0x3b, DIK_UP = 0xc8, DIK_LEFT = 0xcb,
        DIK_RIGHT = 0xcd, DIK_DOWN = 0xd0 };
 
 static uint8_t dik_of_char(char c)
@@ -135,7 +149,7 @@ static uint8_t dik_of_char(char c)
 static void read_input(void)
 {
     memcpy(ctx.keys_prev, ctx.keys, sizeof ctx.keys);
-    memset(ctx.keys, 0, sizeof ctx.keys);
+    bool raw = plat_dik_keys(ctx.keys);
     uint32_t p = plat_pad(0);
     static const struct { uint32_t pad; uint8_t key; } map[] = {
         {PAD_UP, DIK_UP}, {PAD_DOWN, DIK_DOWN}, {PAD_LEFT, DIK_LEFT}, {PAD_RIGHT, DIK_RIGHT}, {PAD_A, DIK_RETURN},
@@ -144,14 +158,29 @@ static void read_input(void)
     };
     for (size_t i = 0; i < sizeof map / sizeof *map; i++)
         if (p & map[i].pad) ctx.keys[map[i].key] = 1;
-    char text[64];
-    int n = plat_text_input(text, sizeof text);
-    for (int i = 0; i < n; i++) {
-        uint8_t k = dik_of_char(text[i]);
-        if (k) ctx.keys[k] = 1;
+    if (!raw) {
+        char text[64];
+        int n = plat_text_input(text, sizeof text);
+        for (int i = 0; i < n; i++) {
+            uint8_t k = dik_of_char(text[i]);
+            if (k) ctx.keys[k] = 1;
+        }
     }
     memcpy(ctx.mouse_prev, ctx.mouse, sizeof ctx.mouse);
     ctx.mouse_buttons_prev = ctx.mouse_buttons;
+    float x, y;
+    uint32_t buttons;
+    if (plat_pointer(&x, &y, &buttons)) {
+        float w = (float)gpu_width(), h = (float)gpu_height(), vw = w, vh = h;
+        if (vw * 3 > vh * 4) vw = vh * 4 / 3;
+        else vh = vw * 3 / 4;
+        if (vw > 0 && vh > 0) {
+            ctx.mouse[0] = (x - (w - vw) / 2) / vw * CK_SCREEN_W;
+            ctx.mouse[1] = (y - (h - vh) / 2) / vh * CK_SCREEN_H;
+        }
+        ctx.mouse_buttons = buttons & 7;
+    }
+    plat_cursor(ctx.cursor_visible);
 }
 
 /* param dump2d=N: the 2D entities at frame N (debugging) */

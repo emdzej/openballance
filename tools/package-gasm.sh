@@ -37,7 +37,7 @@ sha() { (cd "$OUT" && if command -v sha256sum >/dev/null; then sha256sum "$1"; e
 # readme <out file>: README.txt for this platform (~, $USER and backslashes are meant literally)
 # shellcheck disable=SC2088,SC2016,SC1003
 readme() {
-  local start data_how change saves logs keymapdir lic=""
+  local start data_how change saves logs lic=""
   [ -n "$EXE" ] && lic=.txt
   case "$PLATFORM" in
     macos-*)
@@ -51,8 +51,7 @@ image (.iso, .bin)..." for an .iso file or the .bin of a .bin/.cue pair.'
   ~/Library/Application Support/OpenBallance/data-location
 From Terminal: "Ballance (gasm).app/Contents/MacOS/OpenBallance" --help'
       saves='~/Library/Application Support/gasm/openballance/'
-      logs='~/Library/Logs/OpenBallance/gasm.log'
-      keymapdir='~/Library/Application Support/gasm/keymap.txt' ;;
+      logs='~/Library/Logs/OpenBallance/gasm.log' ;;
     linux-*)
       start='Run ./openballance.sh (from a terminal or your file manager). ./openballance.sh
 --install-desktop adds a menu entry. gasm-run needs ALSA (libasound2, package libasound2t64 on
@@ -65,8 +64,7 @@ installed.'
   ${XDG_CONFIG_HOME:-~/.config}/openballance/data-location
 ./openballance.sh --help lists the options; anything after the data goes to gasm-run.'
       saves='~/.local/share/gasm/openballance/'
-      logs='the terminal, or ~/.local/state/openballance/gasm.log when started from a menu'
-      keymapdir='~/.local/share/gasm/keymap.txt' ;;
+      logs='the terminal, or ~/.local/state/openballance/gasm.log when started from a menu' ;;
     windows-*)
       start='Double-click OpenBallance.cmd. (If Windows SmartScreen warns about gasm-run.exe: More info,
 Run anyway.)'
@@ -77,8 +75,7 @@ an .iso or .bin file. From a command prompt: OpenBallance.cmd D:\'
       change='OpenBallance.cmd --change-data, or delete %APPDATA%\OpenBallance\data-location.
 OpenBallance.cmd --help lists the options; anything after the data goes to gasm-run.'
       saves='%APPDATA%\gasm\openballance\'
-      logs='the console window'
-      keymapdir='%APPDATA%\gasm\keymap.txt' ;;
+      logs='the console window' ;;
   esac
   cat > "$1" <<TXT
 OpenBallance $VERSION for gasm ($PLATFORM)
@@ -103,16 +100,15 @@ image has to be inserted or mounted again).
 CHANGE THE GAME DATA
 $change
 
-CONTROLS (keyboard; a gamepad works too)
+CONTROLS (the original's keys; a gamepad works too)
   Arrows            roll the ball, move in the menus
-  X or Enter        Enter: select
-  Z                 Esc: pause menu, back (Esc itself closes gasm-run)
-  Shift (or W)      Shift: hold with Left / Right to rotate the camera
-  Space or S        Space: raise the camera for an overview
-  A                 Q: skip the tutorial
-  F1                F1
-Typed letters go to the highscore name entry. Other keys: copy the bundled keymap.txt, edit it
-and save it as $keymapdir (then the launcher uses yours)
+  Enter             select
+  Esc (tap)         pause menu, back (hold Esc for a second to quit)
+  Shift + Left/Right  rotate the camera
+  Space             raise the camera for an overview
+  Q                 skip the tutorial
+  Mouse             menus (move it to show the cursor)
+The keys can be changed in the game's Options.
 Launch options (after the data): --param unlockall=1 (all levels), --param language=0..4
 (German, English, Spanish, Italian, French), --param mode=viewer --param level=1..12 (level viewer).
 Full guide: https://openballance.emdzej.pl/guide/
@@ -138,7 +134,6 @@ macos-*)
   fill "$SRC/launch-macos.sh" "$APP/Contents/MacOS/OpenBallance"
   chmod +x "$APP/Contents/MacOS/OpenBallance" "$APP/Contents/MacOS/gasm-run"
   cp "$WASM" "$APP/Contents/Resources/openballance.wasm"
-  cp "$SRC/keymap.txt" "$APP/Contents/Resources/keymap.txt"
   cp "$ROOT/LICENSE" "$APP/Contents/Resources/LICENSE"
   cp "$RUNDIR/LICENSE" "$APP/Contents/Resources/LICENSE-gasm"
   "$ROOT/tools/make-icns.sh" "$APP/Contents/Resources/openballance.icns"
@@ -182,7 +177,6 @@ linux-*)
   D="$STAGE/$NAME"; mkdir "$D"
   cp "$RUNDIR/gasm-run" "$D/"
   cp "$WASM" "$D/openballance.wasm"
-  cp "$SRC/keymap.txt" "$D/keymap.txt"
   fill "$SRC/openballance.sh" "$D/openballance.sh"
   cp "$SRC/openballance-gasm.desktop" "$D/"
   python3 "$ROOT/tools/icon.py" 256 "$D/openballance.png" "$ICON"
@@ -198,11 +192,10 @@ windows-*)
   D="$STAGE/$NAME"; mkdir "$D"
   cp "$RUNDIR/gasm-run.exe" "$D/"
   cp "$WASM" "$D/openballance.wasm"
-  cp "$SRC/keymap.txt" "$D/keymap.txt"
   fill "$SRC/OpenBallance.cmd" "$D/OpenBallance.cmd"; fill "$SRC/openballance.ps1" "$D/openballance.ps1"
   readme "$D/README.txt"
   cp "$ROOT/LICENSE" "$D/LICENSE.txt"; cp "$RUNDIR/LICENSE" "$D/LICENSE-gasm.txt"
-  for f in OpenBallance.cmd openballance.ps1 README.txt LICENSE.txt LICENSE-gasm.txt keymap.txt; do crlf "$D/$f"; done
+  for f in OpenBallance.cmd openballance.ps1 README.txt LICENSE.txt LICENSE-gasm.txt; do crlf "$D/$f"; done
   rm -f "$OUT/$NAME.zip"
   (cd "$STAGE" && zip -qr "$OUT/$NAME.zip" "$NAME")
   sha "$NAME.zip"

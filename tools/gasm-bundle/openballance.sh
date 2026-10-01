@@ -147,10 +147,6 @@ if [ "$SAVE" = 1 ] && [ "$DRY" = 0 ]; then
   mkdir -p "$CONF" && printf '%s\n' "$DATAP" > "$LOCFILE"
 fi
 
-# OpenBallance's keyboard layout (Shift + arrows rotate the view), unless the user has their own gasm layout
-case " $* " in *" --keymap "*) ;; *)
-  [ -f "${XDG_DATA_HOME:-$HOME/.local/share}/gasm/keymap.txt" ] || set -- --keymap "$HERE/keymap.txt" "$@" ;;
-esac
 if [ -d "$DATAP" ]; then set -- --asset-dir "$DATAP" "$@"; else set -- --rom "$DATAP" "$@"; fi
 set -- "$HERE/gasm-run" "$HERE/openballance.wasm" "$@"
 if [ "$DRY" = 1 ]; then

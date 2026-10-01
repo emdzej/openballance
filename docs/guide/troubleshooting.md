@@ -8,8 +8,9 @@
 **The browser player says there is no WebGPU**: use a recent Chrome or Edge, Safari 26 or newer, or
 Firefox 141 or newer, or run it with `gasm-run`.
 
-**Pressing Enter opens the quit dialog or Esc closes the window**: Esc is the runner's quit key; the game's
-Esc is on Z. See [Controls](/guide/controls).
+**The window closes when I press Esc**: holding Esc quits `gasm-run`; tap it for the game's pause menu.
+
+**"unknown import" or the module won't load**: OpenBallance needs gasm 0.5.0 or newer.
 
 **Level 1 starts facing away from the track**: that is the original game; the tutorial asks you to turn the
-view (W + Left / Right) until the track with the two towers is in front of you.
+view (Shift + Left / Right) until the track with the two towers is in front of you.

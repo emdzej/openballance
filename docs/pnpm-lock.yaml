@@ -18,8 +18,8 @@ importers:
         specifier: 0.3.0
         version: 0.3.0
       '@emdzej/gasm-host':
-        specifier: 0.4.0
-        version: 0.4.0
+        specifier: 0.5.0
+        version: 0.5.0
       vitepress:
         specifier: ^1.6.4
         version: 1.6.4(@algolia/client-search@5.59.0)(postcss@8.5.28)(search-insights@2.17.3)
@@ -157,8 +157,8 @@ packages:
     resolution: {integrity: sha512-dHipXfdvotZ5ryhndnY68a8V5Zhml7WkiPfNHJCwzIgHFbkT5b8/IZeEFlTsSxkyFk99I2BUvmS2ODIofyEh7Q==}
     engines: {node: '>=22'}
 
-  '@emdzej/gasm-host@0.4.0':
-    resolution: {integrity: sha512-aa+SRK4eplXDB2uoOWBaH+jMjqsWkow9DRF3RqpTJEQ9rMMPtxmDjLYw0i4C/QEGz4I+6mQhMpA2hAswwvLskA==}
+  '@emdzej/gasm-host@0.5.0':
+    resolution: {integrity: sha512-cwKoX8d8q4D4cFGXZ7zXpKsAlbluYCxVnDyRxtO7SVoF+MpU1+Odf3OHim0pJmvDPZeO12qB490avf9X7/R3pw==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -1010,7 +1010,7 @@ snapshots:
       '@emdzej/csfs-core': 0.3.0
       '@emdzej/csfs-fsa': 0.3.0
 
-  '@emdzej/gasm-host@0.4.0': {}
+  '@emdzej/gasm-host@0.5.0': {}
 
   '@esbuild/aix-ppc64@0.21.5':
     optional: true

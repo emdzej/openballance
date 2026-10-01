@@ -9,5 +9,5 @@ Pass them with `--param name=value` to `gasm-run`, or in the player's address (`
 | `mode=viewer` | fly through a level's geometry instead of playing (with `level=N`, 1–12) |
 | `dump2d=N` | debugging: log the visible 2D entities at frame N |
 
-In the viewer, the arrow keys move and turn, the shoulder buttons strafe, A/B go up and down and X/Y look
-up and down.
+In the viewer, the arrow keys move and turn, Q / W strafe, X / Z go up and down and S / A look down and
+up (on a gamepad: d-pad, shoulder buttons, A / B, X / Y).
