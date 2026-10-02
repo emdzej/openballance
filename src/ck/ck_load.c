@@ -630,6 +630,23 @@ static void load_param_value(const Loader *L, CkParameter *p, const CkChunk *c)
     }
 }
 
+/* CKParameterLocal load (FUN_240096e6): identifier 0x200 makes it a "myself" parameter
+   (CKParameterLocal::SetAsMyselfParameter 0x240095a6): its value is the owner behavior's owner object. */
+static void load_param_local(const Loader *L, CkParameter *p, const CkChunk *c)
+{
+    load_param_value(L, p, c);
+    CkReader r;
+    ck_reader_init(&r, c);
+    if (p->h.cid == CKCID_PARAMETERLOCAL && ck_seek(&r, 0x200)) p->myself = true;
+}
+
+static void set_myself(CkContext *ctx, CkParameter *p)
+{
+    CkBehavior *b = ck_behavior(ctx, p->owner);
+    CkId v = b ? b->owner : 0;
+    ck_param_set(p, &v, 4);
+}
+
 static void load_param_in(const Loader *L, CkParameter *p, const CkChunk *c)
 {
     /* CKParameterIn load (FUN_24009005): 0x800 shared source, 0x1000 direct source, 0x2000 disabled */
@@ -821,7 +838,10 @@ void ck_read_object_state(CkContext *ctx, CkId id, const CkChunk *c, uint32_t fi
     load_attribute_types(&L);
     load_object_flags(o, c);
     switch (o->cid) {
-    case CKCID_PARAMETERLOCAL: case CKCID_PARAMETER: load_param_value(&L, (CkParameter *)o, c); break;
+    case CKCID_PARAMETERLOCAL: case CKCID_PARAMETER:
+        load_param_local(&L, (CkParameter *)o, c);
+        if (((CkParameter *)o)->myself) set_myself(ctx, (CkParameter *)o);
+        break;
     case CKCID_PARAMETEROUT: load_param_out(&L, (CkParameter *)o, c); break;
     case CKCID_DATAARRAY: {
         CkDataArray *a = (CkDataArray *)o;
@@ -875,7 +895,7 @@ static void load_one(Loader *L, CkObj *o, const CkChunk *c)
     case CKCID_PARAMETEROUT: ((CkParameter *)o)->kind = CKP_OUT; load_param_out(L, (CkParameter *)o, c); break;
     case CKCID_PARAMETERLOCAL: case CKCID_PARAMETER:
         ((CkParameter *)o)->kind = CKP_LOCAL;
-        load_param_value(L, (CkParameter *)o, c);
+        load_param_local(L, (CkParameter *)o, c);
         break;
     case CKCID_PARAMETEROPERATION: load_operation(L, (CkParameterOperation *)o, c); break;
     default:
@@ -956,6 +976,10 @@ static void link_objects(CkContext *ctx, const CkIds *ids)
             ids_free(&todo);
         }
         if (o->cid == CKCID_LEVEL && !ctx->level) ctx->level = o->id;
+    }
+    for (uint32_t i = 0; i < ids->n; i++) {
+        CkParameter *p = ck_param(ctx, ids->v[i]);
+        if (p && p->myself) set_myself(ctx, p);
     }
     /* resolve Building Blocks */
     for (uint32_t i = 0; i < ids->n; i++) {
@@ -1108,6 +1132,7 @@ void ck_copy_objects(CkContext *ctx, const CkIds *objects, const CkDependencies 
             CkParameter *p = (CkParameter *)o, *cp = (CkParameter *)c;
             cp->kind = p->kind;
             cp->type = p->type;
+            cp->myself = p->myself;
             if (p->kind != CKP_IN && p->value) {
                 ck_param_set(cp, p->value, p->size);
                 uint32_t cls = ck_type_class(p->type);

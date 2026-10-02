@@ -97,6 +97,7 @@ typedef struct {
     CkId op;                  /* ParameterOut: the operation writing it (lazy evaluation) */
     CkId owner;               /* behavior, operation or BeObject (attribute) */
     CkIds dests;              /* ParameterOut destinations */
+    bool myself;              /* ParameterLocal "This": the value is the owner behavior's BeObject */
 } CkParameter;
 
 typedef struct {

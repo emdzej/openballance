@@ -372,8 +372,9 @@ int main(int argc, char **argv)
         }
         /* env MOVEENT="name@x,y,z>X,Y,Z:frame": at that frame, entities called name within 1 unit of (x,y,z) are
            moved to (X,Y,Z) (testing: e.g. a transformer onto the ball) */
-        for (int mi = 0; mi < 2; mi++) {
-        const char *me = getenv(mi ? "MOVEENT2" : "MOVEENT");
+        for (int mi = 0; mi < 4; mi++) {
+        static const char *const movenv[] = {"MOVEENT", "MOVEENT2", "MOVEENT3", "MOVEENT4"};
+        const char *me = getenv(movenv[mi]);
         if (me && strchr(me, ':') && atoi(strrchr(me, ':') + 1) == f) {
             char name[128];
             float a[3], t[3];
@@ -390,6 +391,26 @@ int main(int argc, char **argv)
                 }
         }
         }
+        /* env SENDMSG="Message name>object name:f1,f2,...": send that message to the object at those frames */
+        const char *sm = getenv("SENDMSG");
+        if (sm && strchr(sm, '>') && strchr(sm, ':')) {
+            char msg[128], dst[128];
+            snprintf(msg, sizeof msg, "%.*s", (int)(strchr(sm, '>') - sm), sm);
+            snprintf(dst, sizeof dst, "%.*s", (int)(strchr(sm, ':') - strchr(sm, '>') - 1), strchr(sm, '>') + 1);
+            bool now = false;
+            for (const char *q = strchr(sm, ':') + 1; *q; q = strchr(q, ',') ? strchr(q, ',') + 1 : q + strlen(q))
+                if (atoi(q) == f) now = true;
+            if (now) {
+                int32_t type = -1;
+                for (uint32_t i = 0; i < ctx.nmessages; i++)
+                    if (ctx.messages[i] && !strcmp(ctx.messages[i], msg)) type = (int32_t)i;
+                CkId d = 0;
+                for (uint32_t i = 0; i < ctx.nobjs && !d; i++)
+                    if (ctx.objs[i] && !strcmp(ctx.objs[i]->name, dst) && ck_is_beobject_class(ctx.objs[i]->cid)) d = ctx.objs[i]->id;
+                if (type >= 0 && d) ck_send_message(&ctx, type, 2, d, 0);
+                printf("f%d sent '%s' (%d) to %s #%u\n", f, msg, type, dst, d);
+            }
+        }
         /* env MEMSTAT=n: heap bytes in use every n frames (macOS) */
 #ifdef __APPLE__
         const char *ms = getenv("MEMSTAT");
@@ -399,6 +420,25 @@ int main(int argc, char **argv)
             printf("f%d heap %zu bytes in use\n", f, st.size_in_use);
         }
 #endif
+        /* env DUMPENTS="substring:frame": 3D entities whose names contain substring: position, visibility, mesh */
+        const char *dn = getenv("DUMPENTS");
+        if (dn && strchr(dn, ':') && atoi(strrchr(dn, ':') + 1) == f) {
+            char sub[128];
+            snprintf(sub, sizeof sub, "%.*s", (int)(strrchr(dn, ':') - dn), dn);
+            for (uint32_t i = 0; i < ctx.nobjs; i++) {
+                CkObj *o = ctx.objs[i];
+                if (!o || !ck_is_3dentity_class(o->cid) || !strstr(o->name, sub)) continue;
+                Ck3dEntity *e = (Ck3dEntity *)o;
+                CkObj *m = ck_obj(&ctx, e->mesh), *pa = ck_obj(&ctx, e->parent);
+                printf("ent #%u %-28s %s pos %.1f,%.1f,%.1f mesh %s parent %s scripts", o->id, o->name, (o->flags & CK_OBJECT_VISIBLE) ? "vis" : "hid",
+                       e->world[3][0], e->world[3][1], e->world[3][2], m ? m->name : "-", pa ? pa->name : "-");
+                for (uint32_t k = 0; k < e->be.scripts.n; k++) {
+                    CkBehavior *sc = ck_behavior(&ctx, e->be.scripts.v[k]);
+                    printf(" #%u%s%s", e->be.scripts.v[k], sc ? sc->h.name : "?", sc && (sc->bflags & CKBF_ACTIVE) ? "(active)" : "");
+                }
+                printf("\n");
+            }
+        }
         /* env WATCHPARAM=name: the named parameters' values when they change */
         const char *wp = getenv("WATCHPARAM");
         if (wp) {
