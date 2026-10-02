@@ -11,18 +11,21 @@
 /* WGSL: row-vector matrices uploaded as-is read as their transpose, so "M * v" computes v * M. */
 static const char *SHADER =
     "struct Light { pos: vec4f, dir: vec4f, col: vec4f, att: vec4f };\n"
-    "struct Frame { viewproj: mat4x4f, ambient: vec4f, fog_col: vec4f, fog: vec4f, lights: array<Light, 8> };\n"
-    "struct Draw { world: mat4x4f, diffuse: vec4f, emissive: vec4f, params: vec4f, ambient: vec4f, vp: mat4x4f };\n"
+    "struct Frame { viewproj: mat4x4f, ambient: vec4f, fog_col: vec4f, fog: vec4f, lights: array<Light, 8>, eye: vec4f };\n"
+    "struct Draw { world: mat4x4f, diffuse: vec4f, emissive: vec4f, params: vec4f, ambient: vec4f, vp: mat4x4f, spec: vec4f };\n"
     "@group(0) @binding(0) var<uniform> F: Frame;\n"
     "@group(0) @binding(1) var<uniform> D: Draw;\n"
     "@group(1) @binding(0) var tex: texture_2d<f32>;\n"
     "@group(1) @binding(1) var smp: sampler;\n"
     "struct VIn { @location(0) pos: vec3f, @location(1) nrm: vec3f, @location(2) uv: vec2f, @location(3) col: vec4f };\n"
-    "struct VOut { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) col: vec4f, @location(2) fogf: f32 };\n"
+    "struct VOut { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) col: vec4f, @location(2) fogf: f32, @location(3) spec: vec3f };\n"
     /* D3D7 fixed function lighting per vertex: emissive + ambient * material ambient + for each light
        diffuse * material diffuse * N.L * attenuation (directional: none; point/spot: 1 / (a0 + a1 d + a2 d^2)
        within the range; spot: smooth falloff between the falloff and hotspot cones). Fog from the eye
-       distance: linear (end - d) / (end - start), exp e^(-density d), exp2 e^(-(density d)^2). */
+       distance: linear (end - d) / (end - start), exp e^(-density d), exp2 e^(-(density d)^2). Specular (the
+       material's specular colour and power, when not black / 0: D3DRS_SPECULARENABLE): per light with a
+       local viewer, light colour * material specular * (N.H)^power * attenuation for lit faces, added
+       after the texture stage. */
     "@vertex fn vs(v: VIn) -> VOut {\n"
     "  var o: VOut;\n"
     "  let w = D.world * vec4f(v.pos, 1.0);\n"
@@ -47,7 +50,12 @@ static const char *SHADER =
     "          att = att * clamp((cs - L.att.w) / max(L.col.w - L.att.w, 0.0001), 0.0, 1.0);\n"
     "        }\n"
     "      }\n"
-    "      acc += L.col.rgb * D.diffuse.rgb * max(dot(n, ldir), 0.0) * att;\n"
+    "      let ndl = dot(n, ldir);\n"
+    "      acc += L.col.rgb * D.diffuse.rgb * max(ndl, 0.0) * att;\n"
+    "      if (D.spec.w > 0.0 && ndl > 0.0) {\n"
+    "        let hv = normalize(ldir + normalize(F.eye.xyz - w.xyz));\n"
+    "        o.spec += L.col.rgb * D.spec.rgb * pow(max(dot(n, hv), 0.0), D.spec.w) * att;\n"
+    "      }\n"
     "    }\n"
     "    c = vec4f(clamp(acc, vec3f(0.0), vec3f(1.0)), D.diffuse.a);\n"
     "  } else {\n"
@@ -65,6 +73,7 @@ static const char *SHADER =
     "@fragment fn fs(i: VOut) -> @location(0) vec4f {\n"
     "  let t = textureSample(tex, smp, i.uv);\n"
     "  var c = i.col * t;\n"
+    "  c = vec4f(min(c.rgb + i.spec, vec3f(1.0)), c.a);\n"
     "  let f = i32(D.params.z); let a = c.a; let r = D.params.x;\n"
     "  if ((f == 1) || (f == 2 && !(a < r)) || (f == 3 && a != r) || (f == 4 && a > r) ||\n"
     "      (f == 5 && !(a > r)) || (f == 6 && a == r) || (f == 7 && a < r)) { discard; }\n"
@@ -115,6 +124,7 @@ typedef struct {
     float ambient[4];         /* w = light count */
     float fog_col[4], fog[4]; /* start, end, mode, density */
     struct { float pos[4], dir[4], col[4], att[4]; } lights[MAX_LIGHTS];   /* pos.w type, dir.w range, col.w cos hotspot, att.w cos falloff */
+    float eye[4];             /* the viewpoint (specular) */
 } FrameUniforms;
 enum { FRAME_SIZE = sizeof(FrameUniforms) };
 
@@ -191,7 +201,7 @@ Renderer *render_create(void)
     r->shader = gpu_create_shader(SHADER);
     r->layout0 = gpu_create_bind_group_layout(
         "{\"entries\":[{\"binding\":0,\"visibility\":3,\"buffer\":{\"type\":\"uniform\"}},"
-        "{\"binding\":1,\"visibility\":3,\"buffer\":{\"type\":\"uniform\",\"hasDynamicOffset\":true,\"minBindingSize\":192}}]}");
+        "{\"binding\":1,\"visibility\":3,\"buffer\":{\"type\":\"uniform\",\"hasDynamicOffset\":true,\"minBindingSize\":208}}]}");
     r->layout1 = gpu_create_bind_group_layout(
         "{\"entries\":[{\"binding\":0,\"visibility\":2,\"texture\":{\"sampleType\":\"float\",\"viewDimension\":\"2d\"}},"
         "{\"binding\":1,\"visibility\":2,\"sampler\":{\"type\":\"filtering\"}}]}");
@@ -204,7 +214,7 @@ Renderer *render_create(void)
     char json[512];
     snprintf(json, sizeof json,
              "{\"layout\":%u,\"entries\":[{\"binding\":0,\"buffer\":%u,\"offset\":0,\"size\":%u},"
-             "{\"binding\":1,\"buffer\":%u,\"offset\":0,\"size\":192}]}",
+             "{\"binding\":1,\"buffer\":%u,\"offset\":0,\"size\":208}]}",
              r->layout0, r->frame_buf, (unsigned)FRAME_SIZE, r->draw_buf);
     r->bind0 = gpu_create_bind_group(json);
     r->sampler_wrap = gpu_create_sampler("{\"addressModeU\":\"repeat\",\"addressModeV\":\"repeat\",\"magFilter\":\"linear\","
@@ -780,9 +790,12 @@ void render_frame(Renderer *r, CkContext *ctx, const Camera *cam)
     const CkCamera *k = cam ? NULL : ck_camera(ctx, ctx->camera), *game_cam = k;
     if (k) {
         camera_view_proj(ctx, k, 4.0f / 3.0f, frame.viewproj);
+        float cx[3], cy[3], cz[3];
+        camera_basis(ctx, k, cx, cy, cz, frame.eye);
     } else {
         Camera def = {{0, 0, 0}, 0, 0, 0.8f, 1, 4000};
         view_proj(cam ? cam : &def, 4.0f / 3.0f, frame.viewproj);
+        memcpy(frame.eye, (cam ? cam : &def)->pos, 12);
     }
     setup_lights(ctx, !cam, &frame);
     if (cam) {
@@ -824,6 +837,10 @@ void render_frame(Renderer *r, CkContext *ctx, const Camera *cam)
                 CkColor em = mat ? mat->emissive : (CkColor){0, 0, 0, 0};
                 CkColor am = mat ? mat->ambient : (CkColor){1, 1, 1, 1};
                 u[28] = am.r, u[29] = am.g, u[30] = am.b, u[31] = am.a;
+                /* specular: the material's colour and power (CKMaterial::SetAsCurrent enables it when both are set) */
+                CkColor sp = mat ? mat->specular : (CkColor){0, 0, 0, 0};
+                bool spec_on = mat && mat->power > 0 && (sp.r > 0 || sp.g > 0 || sp.b > 0);
+                u[48] = sp.r, u[49] = sp.g, u[50] = sp.b, u[51] = spec_on ? mat->power : 0;
                 u[16] = d.r, u[17] = d.g, u[18] = d.b, u[19] = d.a;
                 u[20] = em.r, u[21] = em.g, u[22] = em.b, u[23] = em.a;
                 bool atest = (mflags & CKMAT_ALPHATEST) != 0;
@@ -857,7 +874,7 @@ void render_frame(Renderer *r, CkContext *ctx, const Camera *cam)
                 uint32_t pipe = pipeline_for(r, true, m->channels[c].src_blend, m->channels[c].dst_blend, false, (cm->flags & CKMAT_TWOSIDED) != 0, 4);
                 for (uint32_t b = 0; b < g->nbatches && ndraws < MAX_DRAWS; b++) {
                     float *u = (float *)(r->draw_data + ndraws * DRAW_STRIDE);
-                    memset(u, 0, 192);
+                    memset(u, 0, 208);
                     memcpy(u, e->world, 64);
                     u[16] = cm->diffuse.r, u[17] = cm->diffuse.g, u[18] = cm->diffuse.b, u[19] = cm->diffuse.a;
                     u[20] = cm->emissive.r, u[21] = cm->emissive.g, u[22] = cm->emissive.b, u[23] = cm->emissive.a;
@@ -882,7 +899,7 @@ void render_frame(Renderer *r, CkContext *ctx, const Camera *cam)
             if (!ps->live) continue;
             uint32_t n = ck_ps_geometry(ps, cr, cu, cf, r->part_verts + npart, MAX_PART_VERTS - npart);
             if (!n) continue;
-            memset(r->draw_data + ndraws * DRAW_STRIDE, 0, 192);
+            memset(r->draw_data + ndraws * DRAW_STRIDE, 0, 208);
             texture_alpha_test(ctx, ps->texture, (float *)(r->draw_data + ndraws * DRAW_STRIDE) + 24,
                                (float *)(r->draw_data + ndraws * DRAW_STRIDE) + 26);
             GpuTexture *t = ps->texture && ps->texture < r->cap ? &r->textures[ps->texture] : NULL;
@@ -917,7 +934,7 @@ void render_frame(Renderer *r, CkContext *ctx, const Camera *cam)
             }
             bool blended = (mat->flags & CKMAT_ALPHABLEND) != 0;
             uint8_t src = blended ? mat->src_blend : VXBLEND_ONE, dst = blended ? mat->dst_blend : VXBLEND_ZERO;
-            memset(r->draw_data + ndraws * DRAW_STRIDE, 0, 192);
+            memset(r->draw_data + ndraws * DRAW_STRIDE, 0, 208);
             if (mat->flags & CKMAT_ALPHATEST) {
                 float *u = (float *)(r->draw_data + ndraws * DRAW_STRIDE);
                 u[24] = mat->alpha_ref / 255.0f, u[26] = (float)mat->alpha_func;
