@@ -95,8 +95,11 @@ bool ck_array_set_from_param(CkContext *ctx, CkDataArray *a, uint32_t row, uint3
         break;
     }
     case CKARRAYTYPE_PARAMETER: {
+        /* the cell parameter's CopyValue (CK2 0x2400824d): only from a compatible type (CKParameter::
+           IsCompatibleWith, the parameter manager's IsTypeCompatible: one type derives from the other),
+           otherwise the cell keeps its value (Init Ingame's FALSE into Energy's Time "Timefactor" cell) */
         CkParameter *cp = ck_param(ctx, c->obj);
-        if (cp) ck_param_set(cp, p->value, p->size);
+        if (cp && (ck_type_derives(p->type, cp->type) || ck_type_derives(cp->type, p->type))) ck_param_set(cp, p->value, p->size);
         break;
     }
     default:

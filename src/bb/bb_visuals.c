@@ -6,17 +6,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/* CKObject::Show / FUN_25781110 (hierarchy): 3D entities pass it to their children */
+/* CKObject::Show (vtable +0): CKGroup's shows or hides each object in the group as well */
+static void show_object(CkContext *ctx, CkObj *o, bool on, int depth)
+{
+    if (on) o->flags = (o->flags | CK_OBJECT_VISIBLE) & ~CK_OBJECT_HIERARCHICALHIDE;
+    else o->flags &= ~(CK_OBJECT_VISIBLE | CK_OBJECT_HIERARCHICALHIDE);
+    if (o->cid != CKCID_GROUP || depth > 8) return;
+    CkGroup *g = (CkGroup *)o;
+    for (uint32_t i = 0; i < g->members.n; i++) {
+        CkObj *m = ck_obj(ctx, g->members.v[i]);
+        if (m && m != o) show_object(ctx, m, on, depth + 1);
+    }
+}
+
+/* FUN_25781110 (Hierarchy): Show, then the same for the children of a 3D entity (+0x88 / +0x8c) or of a 2D
+   entity (class 0x1b: +0xec / +0xf0), recursively */
 static void show(CkContext *ctx, CkId id, bool on, bool hierarchy)
 {
     CkObj *o = ck_obj(ctx, id);
     if (!o) return;
-    if (on) o->flags = (o->flags | CK_OBJECT_VISIBLE) & ~CK_OBJECT_HIERARCHICALHIDE;
-    else o->flags &= ~(CK_OBJECT_VISIBLE | CK_OBJECT_HIERARCHICALHIDE);
-    if (!hierarchy || !ck_is_3dentity_class(o->cid)) return;
+    show_object(ctx, o, on, 0);
+    if (!hierarchy) return;
+    bool e3 = ck_is_3dentity_class(o->cid), e2 = ck_is_2dentity_class(o->cid);
+    if (!e3 && !e2) return;
     for (uint32_t i = 0; i < ctx->nobjs; i++) {
         CkObj *c = ctx->objs[i];
-        if (c && ck_is_3dentity_class(c->cid) && ((Ck3dEntity *)c)->parent == id) show(ctx, c->id, on, true);
+        if (!c || c == o) continue;
+        if (e3 && ck_is_3dentity_class(c->cid) && ((Ck3dEntity *)c)->parent == id) show(ctx, c->id, on, true);
+        if (e2 && ck_is_2dentity_class(c->cid) && ((Ck2dEntity *)c)->parent == id) show(ctx, c->id, on, true);
     }
 }
 
