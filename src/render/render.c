@@ -303,6 +303,26 @@ static uint32_t pipeline_for(Renderer *r, bool blend, uint8_t src, uint8_t dst, 
 
 /* ---- uploads ---- */
 
+/* GPU objects of a texture or mesh that's gone or replaced (handles are 0 when absent) */
+static void destroy_texture(GpuTexture *g)
+{
+    if (g->bind_clamp) gpu_destroy(g->bind_clamp);
+    if (g->bind_group) gpu_destroy(g->bind_group);
+    if (g->tex) gpu_destroy(g->tex);
+    *g = (GpuTexture){0};
+}
+
+static void destroy_mesh(GpuMesh *g)
+{
+    if (g->vbuf) gpu_destroy(g->vbuf);
+    if (g->ibuf) gpu_destroy(g->ibuf);
+    for (uint32_t c = 0; c < g->nchannels; c++)
+        if (g->channels[c].vbuf) gpu_destroy(g->channels[c].vbuf);
+    free(g->batches);
+    free(g->channels);
+    *g = (GpuMesh){0};
+}
+
 static uint32_t mip_count(uint32_t w, uint32_t h)
 {
     uint32_t n = 1;
@@ -369,11 +389,13 @@ static void upload_texture(Renderer *r, CkTexture *t, const char *dir)
         if (img.rgba[i * 4 + 3] < 255) { alpha = true; break; }
     uint32_t mips = t->mipmap ? mip_count(img.w, img.h) : 1;
     bool fresh = !g->tex || g->w != img.w || g->h != img.h || g->mips != mips;
-    if (fresh) {                   /* (gasm:gfx has no destroy: a replaced texture of another size leaks) */
+    if (fresh) {                   /* a texture of another size: new GPU objects */
+        destroy_texture(g);
         char json[128];
         snprintf(json, sizeof json, "{\"size\":[%u,%u],\"format\":\"rgba8unorm\",\"mipLevelCount\":%u}", img.w, img.h, mips);
         g->tex = gpu_create_texture(json);
         g->w = img.w, g->h = img.h, g->mips = mips;
+        g->version = t->version;
     }
     g->alpha = alpha;
     Image cur = img;
@@ -428,7 +450,10 @@ static void upload_channels(Renderer *r, CkMesh *m)
         uint32_t vsize = (m->nverts * VERTEX_STRIDE + 3) & ~3u;
         uint8_t *vb = calloc(1, vsize);
         fill_vertices(m, ch->uv, vb);
-        if (!gc->vbuf || gc->vsize < vsize) gc->vbuf = gpu_create_buffer(vsize, GPU_USAGE_VERTEX), gc->vsize = vsize;
+        if (!gc->vbuf || gc->vsize < vsize) {
+            if (gc->vbuf) gpu_destroy(gc->vbuf);
+            gc->vbuf = gpu_create_buffer(vsize, GPU_USAGE_VERTEX), gc->vsize = vsize;
+        }
         gpu_write_buffer(gc->vbuf, 0, vb, vsize);
         free(vb);
         gc->material = ch->material, gc->version = ch->version;
@@ -450,8 +475,11 @@ static void upload_mesh(Renderer *r, CkMesh *m)
     uint8_t *vb = calloc(1, vsize);
     fill_vertices(m, NULL, vb);
     for (uint32_t c = 0; c < g->nchannels; c++) g->channels[c].version = 0;   /* vertices moved: channels follow */
-    /* a changed mesh is rewritten in place when it fits (gasm:gfx can't free buffers) */
-    if (!g->vbuf || g->vsize < vsize) g->vbuf = gpu_create_buffer(vsize, GPU_USAGE_VERTEX), g->vsize = vsize;
+    /* a changed mesh is rewritten in place when it fits */
+    if (!g->vbuf || g->vsize < vsize) {
+        if (g->vbuf) gpu_destroy(g->vbuf);
+        g->vbuf = gpu_create_buffer(vsize, GPU_USAGE_VERTEX), g->vsize = vsize;
+    }
     gpu_write_buffer(g->vbuf, 0, vb, vsize);
     free(vb);
     CkFace *faces = malloc(m->nfaces * sizeof *faces);
@@ -469,7 +497,10 @@ static void upload_mesh(Renderer *r, CkMesh *m)
         }
         g->batches[g->nbatches - 1].count += 3;
     }
-    if (!g->ibuf || g->isize < isize) g->ibuf = gpu_create_buffer(isize, GPU_USAGE_INDEX), g->isize = isize;
+    if (!g->ibuf || g->isize < isize) {
+        if (g->ibuf) gpu_destroy(g->ibuf);
+        g->ibuf = gpu_create_buffer(isize, GPU_USAGE_INDEX), g->isize = isize;
+    }
     gpu_write_buffer(g->ibuf, 0, ib, isize);
     free(ib);
     free(faces);
@@ -773,6 +804,12 @@ void render_frame(Renderer *r, CkContext *ctx, const Camera *cam)
     ensure_cap(r, ctx->nobjs + 1);
     for (uint32_t i = 0; i < ctx->nobjs; i++) {
         CkObj *o = ctx->objs[i];
+        /* destroyed objects (a level's, when it ends; ids aren't reused): free their GPU objects */
+        if (!o) {
+            if (r->textures[i + 1].tex) destroy_texture(&r->textures[i + 1]);
+            if (r->meshes[i + 1].vbuf || r->meshes[i + 1].nchannels) destroy_mesh(&r->meshes[i + 1]);
+            continue;
+        }
         if (o && o->cid == CKCID_MESH && r->meshes[o->id].version != ((CkMesh *)o)->version) upload_mesh(r, (CkMesh *)o);
         if (o && o->cid == CKCID_MESH && ((CkMesh *)o)->nchannels) upload_channels(r, (CkMesh *)o);
         if (!o || o->cid != CKCID_TEXTURE) continue;

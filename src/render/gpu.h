@@ -1,4 +1,4 @@
-/* GPU interface: the gasm:gfx subset (gasm ABI 0, gfx as of gasm 0.4.0), one call per import, with
+/* GPU interface: the gasm:gfx subset (gasm ABI 0, gfx as of gasm 0.6.0), one call per import, with
    WebGPU-style JSON descriptors. platform_gasm.c forwards to the gasm runner; gpu_null.c (tests) validates
    nothing and returns handles. Semantics: gasm spec/ABI.md, "gasm:gfx". */
 #pragma once
@@ -32,3 +32,5 @@ void gpu_draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_ver
 void gpu_draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t base_vertex,
                       uint32_t first_instance);
 void gpu_end_frame(void);
+/* Releases an object of any kind; the handle must not be used again (gasm traps). */
+void gpu_destroy(uint32_t handle);

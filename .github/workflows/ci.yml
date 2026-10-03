@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # The SDK version lives in tools/fetch-gasm-sdk.sh (GASM_VERSION, 0.5.0: gfx and raw input).
+      # The SDK version lives in tools/fetch-gasm-sdk.sh (GASM_VERSION, 0.6.0).
       - name: fetch wasi-sdk and the gasm C SDK
         run: tools/fetch-gasm-sdk.sh
 

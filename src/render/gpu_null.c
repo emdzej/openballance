@@ -30,3 +30,4 @@ void gpu_set_index_buffer(uint32_t buf, uint32_t format, uint32_t offset) { (voi
 void gpu_draw(uint32_t a, uint32_t b, uint32_t c, uint32_t d) { (void)a; (void)b; (void)c; (void)d; }
 void gpu_draw_indexed(uint32_t a, uint32_t b, uint32_t c, int32_t d, uint32_t e) { (void)a; (void)b; (void)c; (void)d; (void)e; }
 void gpu_end_frame(void) {}
+void gpu_destroy(uint32_t handle) { (void)handle; }

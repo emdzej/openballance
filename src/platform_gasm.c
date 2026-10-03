@@ -1,4 +1,4 @@
-/* gasm platform backend for openballance.wasm (gasm ABI 0 with gasm:gfx and raw input as of 0.5.0). The only file that
+/* gasm platform backend for openballance.wasm (gasm ABI 0 with gasm:gfx and raw input as of 0.6.0). The only file that
    includes gasm.h. Exports: gasm_init (mount the data, app_init), gasm_frame (app_frame), gasm_exit.
 
    Game data, the first that has the game (see mount_game):
@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wasi/api.h>
+
+GASM_TITLE("Ballance");   /* the window title (custom section gasm.title) */
 
 _Static_assert(PAD_A == GASM_BTN_A && PAD_B == GASM_BTN_B && PAD_X == GASM_BTN_X && PAD_Y == GASM_BTN_Y &&
                PAD_L == GASM_BTN_L && PAD_R == GASM_BTN_R && PAD_SELECT == GASM_BTN_SELECT &&
@@ -120,7 +122,14 @@ uint8_t *plat_load_user_file(const char *name, size_t *size)
 
 bool plat_save_user_file(const char *name, const void *data, size_t size)
 {
-    return gasm_storage_set(name, (uint32_t)strlen(name), data, (uint32_t)size) == 0;
+    int32_t e = gasm_storage_set(name, (uint32_t)strlen(name), data, (uint32_t)size);
+    if (e == 0) return true;
+    char msg[160];
+    snprintf(msg, sizeof msg, "OpenBallance: could not save %s: %s", name,
+             e == GASM_STORAGE_ERR_KEY ? "invalid name" : e == GASM_STORAGE_ERR_SIZE ? "too large"
+             : e == GASM_STORAGE_ERR_QUOTA ? "storage full" : e == GASM_STORAGE_ERR_IO ? "write error" : "error");
+    plat_log(msg);
+    return false;
 }
 
 /* ---- GPU: render/gpu.h over gasm:gfx ---- */
@@ -150,6 +159,7 @@ void gpu_set_index_buffer(uint32_t buf, uint32_t format, uint32_t offset) { gasm
 void gpu_draw(uint32_t a, uint32_t b, uint32_t c, uint32_t d) { gasm_gfx_draw(a, b, c, d); }
 void gpu_draw_indexed(uint32_t a, uint32_t b, uint32_t c, int32_t d, uint32_t e) { gasm_gfx_draw_indexed(a, b, c, d, e); }
 void gpu_end_frame(void) { gasm_gfx_end_frame(); }
+void gpu_destroy(uint32_t handle) { gasm_gfx_destroy(handle); }
 
 /* ---- data: the game's files as assets ---- */
 

@@ -12,10 +12,10 @@ WASI_SDK_VERSION=${WASI_SDK_VERSION:-34}
 # The one place the gasm version is set (CI, release and Pages builds all call this script; the gasm
 # bundles' runners too, via --version).
 # Keep it in step with @emdzej/gasm-host in docs/package.json (the browser player's runner).
-# 0.5.0 is the minimum: OpenBallance reads the raw keyboard and pointer (input_mode, key_state, pointer),
+# 0.6.0 is the minimum: OpenBallance frees GPU objects (gfx destroy), reads the raw keyboard and pointer (input_mode, key_state, pointer),
 # renders with gasm:gfx textures, samplers, explicit bind group layouts,
 # dynamic offsets and viewports, reads typed text (highscore names) and needs gfx in Worker mode (browser).
-GASM_VERSION=${GASM_VERSION:-0.5.0}
+GASM_VERSION=${GASM_VERSION:-0.6.0}
 if [ "${1:-}" = --version ]; then echo "$GASM_VERSION"; exit 0; fi
 case "$(uname -s)-$(uname -m)" in
   Darwin-arm64)  PLAT=arm64-macos ;;

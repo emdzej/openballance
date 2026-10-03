@@ -1,7 +1,7 @@
 # Running on gasm
 
-OpenBallance is a gasm game: `openballance.wasm` runs on the gasm runner `gasm-run`, version 0.5.0 or
-newer (it needs gasm's graphics API and its raw keyboard and pointer input). The [bundles](/guide/install) include the runner
+OpenBallance is a gasm game: `openballance.wasm` runs on the gasm runner `gasm-run`, version 0.6.0 or
+newer (it needs gasm's graphics API, including freeing GPU objects, and its raw keyboard and pointer input). The [bundles](/guide/install) include the runner
 and a launcher; you can also call it yourself:
 
 ```sh
