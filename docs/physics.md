@@ -289,9 +289,12 @@ force is F × 66 per simulated second.
 
 Uses:
 
-- **Ball Navigation** (Gameplay): four instances with world directions (1,0,0), (-1,0,0), (0,0,-1) and (0,0,1),
-  no referentials. Force comes from a graph input, presumably the *Force* column in 2.1. A fifth instance pushes
-  along (0,1,0) with a force computed by an Op.
+- **Ball Navigation** (Gameplay): four instances with directions (1,0,0), (-1,0,0), (0,0,-1) and (0,0,1).
+  Direction Ref is the `Cam_OrientRef Frame` local (the camera's orientation frame, set at run time), so the
+  steering is camera-relative; Pos Referential is the active ball with Position (0,0,0), so the force acts at
+  the ball's centre. The direction goes to world once, at Create: after a camera turn the gameplay destroys
+  and re-creates the forces. Force comes from a graph input, presumably the *Force* column in 2.1. A fifth
+  instance pushes along (0,1,0) in the same frame, with a force computed by an Op (Godmode only).
 - **Paper wind**: 18 pieces, (-1,0,1), force 0.03.
 - **PH modules**:
   - P_Modul_08: ±Z relative to `P_Modul_08_Fix`, 1.1.

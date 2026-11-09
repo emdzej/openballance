@@ -1263,9 +1263,14 @@ A port should reset on load/reset/attach. The saved local is 0 in every file any
 
 - `Gameplay.nmo`, `Gameplay_Events` (id 11618, 3 in / 3 out): `Binary Switch.False -> In 0`,
   `Binary Switch.True -> In 1`, `set first Checkpoint.Out 0 -> In 2`. `Out 0 -> Key Event.On`,
-  `Out 1 -> Key Event.Off`, `Out 2` is unconnected. The Binary Switch loops on itself with `delay=1`, so it
-  fires every frame. Streaming Event turns that per-frame level into On/Off edges for the Key Event. `In 2`
-  only clears the other two bits, so after a checkpoint the next True/False fires again.
+  `Out 1 -> Key Event.Off`, `Out 2` is unconnected. The Binary Switch tests the `ESC deactive?` flag and loops
+  on itself with `delay=1`, so it fires every frame. The Key Event is most likely the one that waits for
+  Escape and sends `Pause Level` to `Level` (the graph dump names link ends by block name, and the graph has
+  two Key Events; the Escape one is the pairing that fits the flag). Streaming Event turns the per-frame flag into On/Off edges: the pause key is switched off while
+  the flag is set and back on when it clears. `In 2` comes from `set first Checkpoint`, which runs when
+  `Gameplay_Events` starts and also switches a Key Event on; it only clears the other two bits, so the next
+  True/False fires again. (Message names from the file's message manager: the graph also waits for
+  `Checkpoint reached`, `Level_Finish` and `Game Over`; the debug key 3 sends `Level_Finish`.)
 - `Gameplay.nmo`, `MoveKeys` (id 14906, 2/2): `TT Scaleable Proximity.EnterRange` and `Wait For All.Out`
   go to `In 0`. `Out 0 -> Nop.In 0` and `Out 0 -> In 1 (delay=1)`. `Out 1` is unconnected. It is a
   debouncer: while `In 0` stays active every frame, `Out 0` fires only once (in the frame after that, In 0 and
