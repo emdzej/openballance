@@ -19,3 +19,4 @@ It needs your own copy of Ballance: OpenBallance contains no game code or assets
 - [Installing](/guide/install) and [Game data](/guide/game-data): getting set up.
 - [Running on gasm](/guide/running) or [Playing in the browser](/guide/browser).
 - [Controls](/guide/controls) and [Launch parameters](/guide/parameters).
+- [How Ballance works](/guide/theory): the theory of operation, for anyone who wants to build such a game.

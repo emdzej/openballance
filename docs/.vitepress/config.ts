@@ -50,6 +50,7 @@ export default defineConfig({
             { text: "Controls", link: "/guide/controls" },
             { text: "Launch parameters", link: "/guide/parameters" },
             { text: "Troubleshooting", link: "/guide/troubleshooting" },
+            { text: "How Ballance works", link: "/guide/theory" },
           ],
         },
       ],

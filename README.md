@@ -26,7 +26,8 @@ Ballance keeps almost all of its game logic in Virtools behaviour graphs inside 
 OpenBallance loads those files into a CK2-compatible object model and executes the graphs; the Building
 Blocks they call are ported from the original DLLs, and the physics is a port of the Ipion (IVP) engine
 from `physics_RT.dll`. See [Architecture](https://openballance.emdzej.pl/internals/architecture) and the
-specifications in [`docs/`](docs/).
+specifications in [`docs/`](docs/). [How Ballance works](https://openballance.emdzej.pl/guide/theory) is the
+theory of operation: how the game was designed and how it works.
 
 ## Building
 
