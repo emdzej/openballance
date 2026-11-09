@@ -34,6 +34,7 @@ export default defineConfig({
       { text: "Gallery", link: "/gallery" },
       // A static app in docs/public/play/: target _self makes it a full page load, not a VitePress route.
       { text: "Play", link: "/play/", target: "_self" },
+      { text: "ENCORE", link: "https://encore.emdzej.pl" },
     ],
 
     sidebar: {
@@ -117,7 +118,7 @@ export default defineConfig({
 
     footer: {
       message:
-        "OpenBallance is released under the GPL-3.0. Ballance is © 2004 Cyparade / Atari. OpenBallance contains no original code or assets: it runs the game from your own copy. It runs on <a href=\"https://gasm.emdzej.pl\">gasm</a>. <a href=\"/credits\">Credits</a>",
+        "Part of <a href=\"https://encore.emdzej.pl\">ENCORE</a> — Engines of Nostalgia, Clean Open REimplementations. OpenBallance is released under the GPL-3.0. Ballance is © 2004 Cyparade / Atari. OpenBallance contains no original code or assets: it runs the game from your own copy. It runs on <a href=\"https://gasm.emdzej.pl\">gasm</a>. <a href=\"/credits\">Credits</a>",
     },
   },
 });
